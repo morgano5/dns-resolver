@@ -123,6 +123,7 @@ public class Resolver {
 		private SocketChannel tcpChannel;
 		private DatagramChannel udpChannel;
 		private ByteBuffer buffer;
+		private long udpTimestamp;
 
 		private AnswerProcess recurringProcess;
 
@@ -245,10 +246,15 @@ public class Resolver {
 			if(response.getNumAuthorities() > 0) {
 				Deque<String> serverNames = new LinkedList<>();
 				for(int i = 0; i < response.getNumAuthorities(); i++) {
-					cache.addResourceRecord(response.getAuthority(i));
-					String name = response.getAuthority(i).getDnsName();
+					ResourceRecord authority = response.getAuthority(i);
+					cache.addResourceRecord(authority);
+					String name = authority.getDnsName();
 					if(isSelfOrSuperDomain(name, targetName)) {
-						serverNames.addFirst(response.getAuthority(i).getData(String.class));
+						if(authority.getDnsType().equals(DnsType.NS)) {
+							serverNames.addFirst(authority.getData(String.class));
+						} else {
+							System.out.println(">>>> " + authority.getDnsType()); // TODO
+						}
 					}
 				}
 				serverNames.forEach(this::addServerName);
@@ -325,19 +331,13 @@ public class Resolver {
 			buffer = newBuffer;
 		}
 
-		private void useSelectIfAvailable(SelectableChannel channel) throws IOException {
-			if(selector == null) return;
-			int ops = channel.validOps();
-			SelectionKey key = channel.register(selector, ops);
-			key.attach(this);
-		}
-
 		private boolean doUdpQuery() throws IOException {
 
 			switch(processStatus) {
 
 				case SENDING_UDP:
 
+					udpTimestamp = System.currentTimeMillis();
 					udpChannel = DatagramChannel.open();
 					udpChannel.configureBlocking(false);
 					useSelectIfAvailable(udpChannel);
@@ -353,6 +353,11 @@ public class Resolver {
 				case RECEIVING_UDP:
 
 					if(udpChannel.receive(buffer) == null) {
+						if(System.currentTimeMillis() - udpTimestamp > 500) { // todo unhardcode
+							udpChannel.close();
+							processStatus = AnswerProcessStatus.SENDING_UDP;
+							return false;
+						}
 						processStatus = AnswerProcessStatus.RECEIVING_UDP;
 						return false;
 					}
@@ -362,6 +367,13 @@ public class Resolver {
 
 			}
 			return true;
+		}
+
+		private void useSelectIfAvailable(SelectableChannel channel) throws IOException {
+			if(selector == null) return;
+			int ops = channel.validOps();
+			SelectionKey key = channel.register(selector, ops);
+			key.attach(this);
 		}
 
 		private boolean thereIsResult() {

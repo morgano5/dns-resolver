@@ -16,7 +16,7 @@ public class Test {
 
 		Resolver resolver = new Resolver();
 
-		Resolver.AnswerProcess process = resolver.lookup("gmail.com", DnsType.MX);
+		Resolver.AnswerProcess process = resolver.lookup("villar.id.au", DnsType.MX);
 
 		try(Selector selector = Selector.open()) {
 			process.useSelector(selector);
@@ -24,10 +24,13 @@ public class Test {
 			Set<SelectionKey> keys;
 
 			boolean result = process.doIO();
-			while (!result) {
+			MAIN: while (!result) {
 				int selectedChannels;
 				do {
-					selectedChannels = selector.select();
+					selectedChannels = selector.select(1000);
+					if(selectedChannels == 0) {
+						if(process.doIO()) break MAIN;
+					}
 				} while (selectedChannels == 0);
 				keys = selector.selectedKeys();
 				result = process.doIO();
