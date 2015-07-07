@@ -5,6 +5,7 @@ import au.id.villar.dns.cache.DnsCache;
 import au.id.villar.dns.cache.SimpleDnsCache;
 import au.id.villar.dns.engine.*;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -16,6 +17,8 @@ import java.util.stream.Collectors;
 public class Resolver {
 
 	private static final int DNS_PORT = 53;
+
+	private static final int UDP_RETRY_MILLISECONDS = 1000;
 
 	private AtomicInteger nextId = new AtomicInteger(1);
 
@@ -99,7 +102,7 @@ public class Resolver {
 	private enum AnswerProcessStatus {
 		START,
 		OPENING_TCP, CONNECTING_TCP, SENDING_TCP, RECEIVING_TCP,
-		SENDING_UDP, RECEIVING_UDP
+		OPENING_UDP, SENDING_UDP, RECEIVING_UDP
 	}
 
 
@@ -107,7 +110,7 @@ public class Resolver {
 
 
 
-	public class AnswerProcess {
+	public class AnswerProcess implements Closeable {
 
 		private final String targetName;
 
@@ -133,6 +136,12 @@ public class Resolver {
 		public AnswerProcess(Question question) {
 
 			this.targetName = question.getDnsName();
+			try {
+				this.selector = Selector.open();
+			} catch (IOException e) {
+				this.exception = new DnsException(e);
+				return;
+			}
 
 //			DnsType type = question.getDnsType();
 //
@@ -164,27 +173,44 @@ public class Resolver {
 			this.message = createQueryMessage(question);
 		}
 
-		public boolean doIO() {
+		public boolean doIO(int timeoutMillis) {
 			try {
-				boolean finished = internalDoIO();
+				boolean finished = internalDoIO(timeoutMillis);
 				if(!finished) return false;
 			} catch(IOException e) {
 				exception = new DnsException(e);
 			} catch(DnsException e) {
 				exception = e;
 			}
-			closeChannel(tcpChannel);
-			closeChannel(udpChannel);
+			closeResources();
 			return true;
 		}
 
-		private void closeChannel(SelectableChannel channel) {
-			try {
-				if(channel != null) channel.close();
-			} catch(IOException ignore) {}
+		public List<ResourceRecord> getResult() throws DnsException {
+			if(exception != null) throw exception;
+			return result;
 		}
 
-		private boolean internalDoIO() throws IOException, DnsException {
+		@Override
+		public void close() throws IOException {
+			closeResources();
+		}
+
+		private void closeResources() {
+			close(selector);
+			close(tcpChannel);
+			close(udpChannel);
+		}
+
+		private void close(Closeable channel) {
+			try {
+				if(channel != null) channel.close();
+			} catch(IOException e) {
+				if(!thereIsResult()) exception = new DnsException(e);
+			}
+		}
+
+		private boolean internalDoIO(int timeoutMillis) throws IOException, DnsException {
 
 			while(!thereIsResult()) {
 
@@ -192,7 +218,7 @@ public class Resolver {
 
 					case START:
 
-						if(!updateDnsServerIps()) return false;
+						if(!updateDnsServerIps(timeoutMillis)) return false;
 
 						currentIp = pollNextIp();
 						if(currentIp == null) {
@@ -202,21 +228,21 @@ public class Resolver {
 
 						if(message.limit() > 512) {
 							processStatus = AnswerProcessStatus.OPENING_TCP;
-							if(!doTcpQuery()) return false;
+							if(!doTcpQuery(timeoutMillis)) return false;
 						} else {
-							processStatus = AnswerProcessStatus.SENDING_UDP;
-							if(!doUdpQuery()) return false;
+							processStatus = AnswerProcessStatus.OPENING_UDP;
+							if(!doUdpQuery(timeoutMillis)) return false;
 						}
 						break;
 
 					case OPENING_TCP: case CONNECTING_TCP: case SENDING_TCP: case RECEIVING_TCP:
 
-						if(!doTcpQuery()) return false;
+						if(!doTcpQuery(timeoutMillis)) return false;
 						break;
 
 					case SENDING_UDP: case RECEIVING_UDP:
 
-						if(!doUdpQuery()) return false;
+						if(!doUdpQuery(timeoutMillis)) return false;
 						break;
 
 				}
@@ -271,57 +297,54 @@ public class Resolver {
 			}
 		}
 
-		public List<ResourceRecord> getResult() throws DnsException {
-			if(exception != null) throw exception;
-			return result;
-		}
-
-		public void useSelector(Selector selector) {
-			this.selector = selector;
-		}
-
-		private boolean doTcpQuery() throws IOException {
+		private boolean doTcpQuery(int timeoutMillis) throws IOException {
 			switch(processStatus) {
 
 				case OPENING_TCP:
 
-					buffer = ByteBuffer.allocate(5120);
-
 					tcpChannel = SocketChannel.open();
 					tcpChannel.configureBlocking(false);
-					useSelectIfAvailable(tcpChannel);
+					tcpChannel.register(selector, SelectionKey.OP_CONNECT);
 					processStatus = AnswerProcessStatus.CONNECTING_TCP;
 					tcpChannel.connect(new InetSocketAddress(currentIp, DNS_PORT));
 
 				case CONNECTING_TCP:
 
-					if(!tcpChannel.isConnected()) return false;
+					if(selector.select(timeoutMillis) == 0) {
+						processStatus = AnswerProcessStatus.CONNECTING_TCP;
+						return false;
+					}
+					tcpChannel.register(selector, SelectionKey.OP_WRITE);
 					message.position(0);
 
 				case SENDING_TCP:
 
-					tcpChannel.write(message);
-					if(message.remaining() > 0) {
+					if(!sendDataAndPrepareForReceiving(timeoutMillis, tcpChannel)) {
 						processStatus = AnswerProcessStatus.SENDING_TCP;
 						return false;
 					}
 
 				case RECEIVING_TCP:
 
-					// TODO: how to read in non-blocking mode for TCP and make the buffer bigger if needed
-					try {
-						int received;
-						do {
-							received = tcpChannel.read(buffer);
-							if(received == 0) Thread.sleep(1000);
-						} while (received == 0);
-					} catch (InterruptedException ignore) {}
-
+					if(selector.select(timeoutMillis) == 0) {
+						processStatus = AnswerProcessStatus.RECEIVING_TCP;
+						return false;
+					}
+					receiveTcp();
 					tcpChannel.close();
 					processStatus = AnswerProcessStatus.START;
 
 			}
 			return true;
+		}
+
+		private void receiveTcp() throws IOException {
+			int received;
+			buffer = ByteBuffer.allocate(1024);
+			do {
+				received = tcpChannel.read(buffer);
+				if(received > 0) enlargeBuffer();
+			} while(received > 0);
 		}
 
 		private void enlargeBuffer() {
@@ -331,37 +354,40 @@ public class Resolver {
 			buffer = newBuffer;
 		}
 
-		private boolean doUdpQuery() throws IOException {
+		private boolean doUdpQuery(int timeoutMillis) throws IOException {
 
 			switch(processStatus) {
 
-				case SENDING_UDP:
+				case OPENING_UDP:
 
 					udpTimestamp = System.currentTimeMillis();
 					udpChannel = DatagramChannel.open();
 					udpChannel.configureBlocking(false);
-					useSelectIfAvailable(udpChannel);
 					udpChannel.socket().connect(new InetSocketAddress(currentIp, DNS_PORT));
-
 					message.position(0);
-					if(udpChannel.write(message) == 0) {
-						udpChannel.close();
+					udpChannel.register(selector, SelectionKey.OP_WRITE);
+
+				case SENDING_UDP:
+
+					if(!sendDataAndPrepareForReceiving(timeoutMillis, udpChannel)) {
+						processStatus = AnswerProcessStatus.SENDING_UDP;
 						return false;
 					}
-					buffer = ByteBuffer.allocate(512);
 
 				case RECEIVING_UDP:
 
-					if(udpChannel.receive(buffer) == null) {
-						if(System.currentTimeMillis() - udpTimestamp > 500) { // todo unhardcode
-							udpChannel.close();
+					if(selector.select(timeoutMillis) == 0) {
+						if(System.currentTimeMillis() - udpTimestamp > UDP_RETRY_MILLISECONDS) {
+							message.position(0);
+							udpChannel.register(selector, SelectionKey.OP_WRITE);
 							processStatus = AnswerProcessStatus.SENDING_UDP;
 							return false;
 						}
 						processStatus = AnswerProcessStatus.RECEIVING_UDP;
 						return false;
 					}
-
+					buffer = ByteBuffer.allocate(512);
+					udpChannel.receive(buffer);
 					udpChannel.close();
 					processStatus = AnswerProcessStatus.START;
 
@@ -369,11 +395,14 @@ public class Resolver {
 			return true;
 		}
 
-		private void useSelectIfAvailable(SelectableChannel channel) throws IOException {
-			if(selector == null) return;
-			int ops = channel.validOps();
-			SelectionKey key = channel.register(selector, ops);
-			key.attach(this);
+		private boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
+			if(selector.select(timeoutMillis) == 0) return false;
+			Iterator iterator = selector.selectedKeys().iterator();
+			iterator.next();
+			iterator.remove();
+			((SelectableChannel)channel).register(selector, SelectionKey.OP_READ);
+			((WritableByteChannel)channel).write(message);
+			return true;
 		}
 
 		private boolean thereIsResult() {
@@ -386,14 +415,14 @@ public class Resolver {
 			dnsServerNames.addFirst(name);
 		}
 
-		private boolean updateDnsServerIps() throws IOException, DnsException {
+		private boolean updateDnsServerIps(int timeoutMillis) throws IOException, DnsException {
 			if(recurringProcess == null) {
 				if(dnsServerNames.size() == 0) return true;
 				recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.A);
 			}
 			boolean added = false;
 			while(recurringProcess != null) {
-				if (!recurringProcess.doIO()) return false;
+				if (!recurringProcess.doIO(timeoutMillis)) return false;
 				for (ResourceRecord record : recurringProcess.getResult()) {
 					String ip = record.getData(String.class);
 					if (!alreadyUsedIps.contains(ip)) {

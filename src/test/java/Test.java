@@ -18,31 +18,10 @@ public class Test {
 
 		Resolver.AnswerProcess process = resolver.lookup("villar.id.au", DnsType.MX);
 
-		try(Selector selector = Selector.open()) {
-			process.useSelector(selector);
-
-			Set<SelectionKey> keys;
-
-			boolean result = process.doIO();
-			MAIN: while (!result) {
-				int selectedChannels;
-				do {
-					selectedChannels = selector.select(1000);
-					if(selectedChannels == 0) {
-						if(process.doIO()) break MAIN;
-					}
-				} while (selectedChannels == 0);
-				keys = selector.selectedKeys();
-				result = process.doIO();
-				Iterator iterator = keys.iterator();
-				iterator.next();
-				iterator.remove();
+			boolean done = process.doIO(100);
+			while (!done) {
+				done = process.doIO(100);
 			}
-
-		} catch(IOException e) {
-			e.printStackTrace();
-			return;
-		}
 
 		List<ResourceRecord> result = Collections.emptyList();
 		try {
