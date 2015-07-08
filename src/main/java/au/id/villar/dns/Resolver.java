@@ -3,6 +3,7 @@ package au.id.villar.dns;
 import au.id.villar.dns.cache.CachedResourceRecord;
 import au.id.villar.dns.cache.DnsCache;
 import au.id.villar.dns.cache.SimpleDnsCache;
+import au.id.villar.dns.converter.SoaValueConverter;
 import au.id.villar.dns.engine.*;
 
 import java.io.Closeable;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 public class Resolver {
 
 	private static final int DNS_PORT = 53;
-
+	private static final int UDP_DATAGRAM_MAX_SIZE = 512;
 	private static final int UDP_RETRY_MILLISECONDS = 1000;
 
 	private AtomicInteger nextId = new AtomicInteger(1);
@@ -104,11 +105,6 @@ public class Resolver {
 		OPENING_TCP, CONNECTING_TCP, SENDING_TCP, RECEIVING_TCP,
 		OPENING_UDP, SENDING_UDP, RECEIVING_UDP
 	}
-
-
-
-
-
 
 	public class AnswerProcess implements Closeable {
 
@@ -226,7 +222,7 @@ public class Resolver {
 							return true;
 						}
 
-						if(message.limit() > 512) {
+						if(message.limit() > UDP_DATAGRAM_MAX_SIZE) {
 							processStatus = AnswerProcessStatus.OPENING_TCP;
 							if(!doTcpQuery(timeoutMillis)) return false;
 						} else {
@@ -240,7 +236,7 @@ public class Resolver {
 						if(!doTcpQuery(timeoutMillis)) return false;
 						break;
 
-					case SENDING_UDP: case RECEIVING_UDP:
+					case OPENING_UDP: case SENDING_UDP: case RECEIVING_UDP:
 
 						if(!doUdpQuery(timeoutMillis)) return false;
 						break;
@@ -263,6 +259,8 @@ public class Resolver {
 
 		}
 
+
+
 		private void addExtraInfoToCache(DnsMessage response) {
 
 			for(int i = 0; i < response.getNumAdditionals(); i++) {
@@ -278,8 +276,8 @@ public class Resolver {
 					if(isSelfOrSuperDomain(name, targetName)) {
 						if(authority.getDnsType().equals(DnsType.NS)) {
 							serverNames.addFirst(authority.getData(String.class));
-						} else {
-							System.out.println(">>>> " + authority.getDnsType()); // TODO
+						} else if(authority.getDnsType().equals(DnsType.SOA)) {
+							serverNames.addFirst(authority.getData(SoaValueConverter.SoaData.class).getDomainName());
 						}
 					}
 				}
@@ -340,7 +338,7 @@ public class Resolver {
 
 		private void receiveTcp() throws IOException {
 			int received;
-			buffer = ByteBuffer.allocate(1024);
+			buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
 			do {
 				received = tcpChannel.read(buffer);
 				if(received > 0) enlargeBuffer();
@@ -348,7 +346,7 @@ public class Resolver {
 		}
 
 		private void enlargeBuffer() {
-			ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() + 512);
+			ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() + UDP_DATAGRAM_MAX_SIZE);
 			buffer.flip();
 			newBuffer.put(buffer);
 			buffer = newBuffer;
@@ -386,7 +384,7 @@ public class Resolver {
 						processStatus = AnswerProcessStatus.RECEIVING_UDP;
 						return false;
 					}
-					buffer = ByteBuffer.allocate(512);
+					buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE);
 					udpChannel.receive(buffer);
 					udpChannel.close();
 					processStatus = AnswerProcessStatus.START;
@@ -452,7 +450,7 @@ public class Resolver {
 			DnsMessage dnsMessage = engine.createMessage(id, false, Opcode.QUERY, false, false, true, false,
 					(byte)0, ResponseCode.NO_ERROR, new Question[] {question}, null, null, null);
 
-			int aproxSize = 512;
+			int aproxSize = UDP_DATAGRAM_MAX_SIZE;
 			ByteBuffer buffer = null;
 			while(buffer == null) {
 				try {
@@ -462,7 +460,7 @@ public class Resolver {
 					buffer.put(testingBuffer, 0, actualSize);
 					buffer.position(0);
 				} catch(IndexOutOfBoundsException e) {
-					aproxSize += 512;
+					aproxSize += UDP_DATAGRAM_MAX_SIZE;
 				}
 			}
 			return buffer;
