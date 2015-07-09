@@ -103,7 +103,8 @@ public class Resolver {
 	private enum AnswerProcessStatus {
 		START,
 		OPENING_TCP, CONNECTING_TCP, SENDING_TCP, RECEIVING_TCP,
-		OPENING_UDP, SENDING_UDP, RECEIVING_UDP
+		OPENING_UDP, SENDING_UDP, RECEIVING_UDP,
+		RESULT
 	}
 
 	public class AnswerProcess implements Closeable {
@@ -222,37 +223,40 @@ public class Resolver {
 							return true;
 						}
 
-						if(message.limit() > UDP_DATAGRAM_MAX_SIZE) {
-							processStatus = AnswerProcessStatus.OPENING_TCP;
-							if(!doTcpQuery(timeoutMillis)) return false;
-						} else {
-							processStatus = AnswerProcessStatus.OPENING_UDP;
-							if(!doUdpQuery(timeoutMillis)) return false;
-						}
+						processStatus = message.limit() > UDP_DATAGRAM_MAX_SIZE?
+								AnswerProcessStatus.OPENING_TCP:
+								AnswerProcessStatus.OPENING_UDP;
 						break;
 
 					case OPENING_TCP: case CONNECTING_TCP: case SENDING_TCP: case RECEIVING_TCP:
 
 						if(!doTcpQuery(timeoutMillis)) return false;
+						processStatus = AnswerProcessStatus.RESULT;
 						break;
 
 					case OPENING_UDP: case SENDING_UDP: case RECEIVING_UDP:
 
 						if(!doUdpQuery(timeoutMillis)) return false;
+						processStatus = AnswerProcessStatus.RESULT;
 						break;
 
+					case RESULT:
+
+						DnsMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
+
+						grabAnswersIfExist(response);
+
+						if(!thereIsResult() && response.isTruncated()) {
+							processStatus = AnswerProcessStatus.OPENING_TCP;
+							return false;
+						}
+
+						addExtraInfoToCache(response);
+
+						processStatus = AnswerProcessStatus.START;
+
 				}
 
-				DnsMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
-
-				grabAnswersIfExist(response);
-
-				if(!thereIsResult() && response.isTruncated()) {
-					processStatus = AnswerProcessStatus.OPENING_TCP;
-					return false;
-				}
-
-				addExtraInfoToCache(response);
 			}
 
 			return true;
@@ -330,7 +334,7 @@ public class Resolver {
 					}
 					receiveTcp();
 					tcpChannel.close();
-					processStatus = AnswerProcessStatus.START;
+					processStatus = AnswerProcessStatus.RESULT;
 
 			}
 			return true;
@@ -387,7 +391,7 @@ public class Resolver {
 					buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE);
 					udpChannel.receive(buffer);
 					udpChannel.close();
-					processStatus = AnswerProcessStatus.START;
+					processStatus = AnswerProcessStatus.RESULT;
 
 			}
 			return true;

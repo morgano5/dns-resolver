@@ -6,25 +6,25 @@ This is a snippet of how to use this to get all type of RRs from a dns name (jus
 
 ```java
 
-    Resolver resolver = new Resolver();
+Resolver resolver = new Resolver();
 
-    Resolver.AnswerProcess process = resolver.lookup("yahoo.com", DnsType.ALL);
+Resolver.AnswerProcess process = resolver.lookup("yahoo.com", DnsType.ALL);
 
-    int timeout = 100;
-    boolean done;
-    do {
+int timeout = 100;
+boolean done;
+do {
 
-        done = process.doIO(timeout); // It only blocks for 'timeout' milliseconds, returns true if there is an outcome
+    done = process.doIO(timeout); // It only blocks for 'timeout' milliseconds, returns true if there is an outcome
 
-        // do something else...
+    // do something else...
 
-    } while (!done);
+} while (!done);
 
-    List<ResourceRecord> result = process.getResult();
+List<ResourceRecord> result = process.getResult();
 
-    for(ResourceRecord rr: result) {
-        System.out.println("Result: " + rr.getDnsName() + " - " + rr.getDnsType() + " - " + rr.getData(Object.class));
-    }
+for(ResourceRecord rr: result) {
+    System.out.println("Result: " + rr.getDnsName() + " - " + rr.getDnsType() + " - " + rr.getData(Object.class));
+}
 ```
 
 This is still work in progress. Basic functionality is already there but there are some issues to fix.
