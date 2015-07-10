@@ -231,13 +231,11 @@ public class Resolver {
 					case OPENING_TCP: case CONNECTING_TCP: case SENDING_TCP: case RECEIVING_TCP:
 
 						if(!doTcpQuery(timeoutMillis)) return false;
-						processStatus = AnswerProcessStatus.RESULT;
 						break;
 
 					case OPENING_UDP: case SENDING_UDP: case RECEIVING_UDP:
 
 						if(!doUdpQuery(timeoutMillis)) return false;
-						processStatus = AnswerProcessStatus.RESULT;
 						break;
 
 					case RESULT:
@@ -248,7 +246,7 @@ public class Resolver {
 
 						if(!thereIsResult() && response.isTruncated()) {
 							processStatus = AnswerProcessStatus.OPENING_TCP;
-							return false;
+							break;
 						}
 
 						addExtraInfoToCache(response);
@@ -420,22 +418,31 @@ public class Resolver {
 		private boolean updateDnsServerIps(int timeoutMillis) throws IOException, DnsException {
 			if(recurringProcess == null) {
 				if(dnsServerNames.size() == 0) return true;
-				recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.A);
+				recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
 			}
 			boolean added = false;
 			while(recurringProcess != null) {
 				if (!recurringProcess.doIO(timeoutMillis)) return false;
 				for (ResourceRecord record : recurringProcess.getResult()) {
-					String ip = record.getData(String.class);
-					if (!alreadyUsedIps.contains(ip)) {
-						dnsServerIps.addFirst(ip);
-						added = true;
+					if(record.getDnsType() == DnsType.CNAME) {
+						dnsServerNames.addFirst(record.getData(String.class));
+						recurringProcess.close();
+						recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
+						return false;
+					}
+					if (record.getDnsType() == DnsType.A/* || record.getDnsType() == DnsType.AAAA*/) { // TODO: add support for IPv6
+						String ip = record.getData(String.class);
+						if (!alreadyUsedIps.contains(ip)) {
+							dnsServerIps.addFirst(ip);
+							added = true;
+						}
 					}
 				}
+				recurringProcess.close();
 				recurringProcess = null;
 				if(!added) {
 					if(dnsServerNames.size() == 0) return true;
-					recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.A);
+					recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
 				}
 			}
 			return true;
