@@ -9,6 +9,7 @@ import au.id.villar.dns.engine.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
@@ -23,9 +24,9 @@ public class Resolver {
 
 	private AtomicInteger nextId = new AtomicInteger(1);
 
-	private DnsEngine engine = new DnsEngine();
-	private List<String> dnsRootServers = new ArrayList<>();
-	private DnsCache cache = new SimpleDnsCache(); // TODO customize
+	private final DnsEngine engine = new DnsEngine();
+	private final List<String> dnsRootServers = new ArrayList<>(); // TODO customize
+	private final DnsCache cache = new SimpleDnsCache(); // TODO customize
 
 	public Resolver() {
 
@@ -211,47 +212,57 @@ public class Resolver {
 
 			while(!thereIsResult()) {
 
-				switch(processStatus) {
+				try {
 
-					case START:
+					switch (processStatus) {
 
-						if(!updateDnsServerIps(timeoutMillis)) return false;
+						case START:
 
-						currentIp = pollNextIp();
-						if(currentIp == null) {
-							result = Collections.emptyList();
-							return true;
-						}
+							if (!updateDnsServerIps(timeoutMillis)) return false;
 
-						processStatus = message.limit() > UDP_DATAGRAM_MAX_SIZE?
-								AnswerProcessStatus.OPENING_TCP:
-								AnswerProcessStatus.OPENING_UDP;
-						break;
+							currentIp = pollNextIp();
+							if (currentIp == null) {
+								result = Collections.emptyList();
+								return true;
+							}
 
-					case OPENING_TCP: case CONNECTING_TCP: case SENDING_TCP: case RECEIVING_TCP:
-
-						if(!doTcpQuery(timeoutMillis)) return false;
-						break;
-
-					case OPENING_UDP: case SENDING_UDP: case RECEIVING_UDP:
-
-						if(!doUdpQuery(timeoutMillis)) return false;
-						break;
-
-					case RESULT:
-
-						DnsMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
-
-						grabAnswersIfExist(response);
-
-						if(!thereIsResult() && response.isTruncated()) {
-							processStatus = AnswerProcessStatus.OPENING_TCP;
+							processStatus = message.limit() > UDP_DATAGRAM_MAX_SIZE ?
+									AnswerProcessStatus.OPENING_TCP :
+									AnswerProcessStatus.OPENING_UDP;
 							break;
-						}
 
-						addExtraInfoToCache(response);
+						case OPENING_TCP: case CONNECTING_TCP: case SENDING_TCP: case RECEIVING_TCP:
 
-						processStatus = AnswerProcessStatus.START;
+							if (!doTcpQuery(timeoutMillis)) return false;
+							break;
+
+						case OPENING_UDP: case SENDING_UDP: case RECEIVING_UDP:
+
+							if (!doUdpQuery(timeoutMillis)) return false;
+							break;
+
+						case RESULT:
+
+							DnsMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
+
+							grabAnswersIfExist(response);
+
+							if (!thereIsResult() && response.isTruncated()) {
+								processStatus = AnswerProcessStatus.OPENING_TCP;
+								break;
+							}
+
+							addExtraInfoToCache(response);
+							processStatus = AnswerProcessStatus.START;
+
+					}
+
+				} catch (SocketException e) {
+
+					processStatus = AnswerProcessStatus.START;
+					close(tcpChannel);
+					close(udpChannel);
+					close(recurringProcess);
 
 				}
 
@@ -260,8 +271,6 @@ public class Resolver {
 			return true;
 
 		}
-
-
 
 		private void addExtraInfoToCache(DnsMessage response) {
 
@@ -430,7 +439,7 @@ public class Resolver {
 						recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
 						return false;
 					}
-					if (record.getDnsType() == DnsType.A/* || record.getDnsType() == DnsType.AAAA*/) { // TODO: add support for IPv6
+					if (record.getDnsType() == DnsType.A || record.getDnsType() == DnsType.AAAA) {
 						String ip = record.getData(String.class);
 						if (!alreadyUsedIps.contains(ip)) {
 							dnsServerIps.addFirst(ip);

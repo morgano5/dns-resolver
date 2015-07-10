@@ -32,10 +32,10 @@ This is still work in progress. Basic functionality is already there but there a
 ## TODO list
 
 - [ ] Write documentation
-- [ ] Restart queries when a CNAME RR is reached
+- [X] Restart queries when a CNAME RR is reached
 - [ ] Support for other RRs specified in DNS updates and extensions
 - [ ] Support for MAILB, AXFR and other possible queries returning more than one type of RR
-- [ ] Support for IPv6
+- [X] Support for IPv6
 
 ## To consider
 
