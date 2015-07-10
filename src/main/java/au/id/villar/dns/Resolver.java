@@ -2,7 +2,6 @@ package au.id.villar.dns;
 
 import au.id.villar.dns.cache.CachedResourceRecord;
 import au.id.villar.dns.cache.DnsCache;
-import au.id.villar.dns.cache.SimpleDnsCache;
 import au.id.villar.dns.converter.SoaValueConverter;
 import au.id.villar.dns.engine.*;
 
@@ -25,31 +24,41 @@ public class Resolver {
 	private AtomicInteger nextId = new AtomicInteger(1);
 
 	private final DnsEngine engine = new DnsEngine();
-	private final List<String> dnsRootServers = new ArrayList<>(); // TODO customize
-	private final DnsCache cache = new SimpleDnsCache(); // TODO customize
+	private final List<String> dnsRootServers;
+	private final DnsCache cache;
+	private final boolean useIPv4;
+	private final boolean useIPv6;
 
-	public Resolver() {
-
-		// TODO get info from somewhere else
-		dnsRootServers.add("198.41.0.4");
-		dnsRootServers.add("192.228.79.201");
-		dnsRootServers.add("192.33.4.12");
-		dnsRootServers.add("199.7.91.13");
-		dnsRootServers.add("192.203.230.10");
-		dnsRootServers.add("192.5.5.241");
-		dnsRootServers.add("192.112.36.4");
-		dnsRootServers.add("128.63.2.53");
-		dnsRootServers.add("192.36.148.17");
-		dnsRootServers.add("192.58.128.30");
-		dnsRootServers.add("193.0.14.129");
-		dnsRootServers.add("199.7.83.42");
-		dnsRootServers.add("202.12.27.33");
-
+	private Resolver(DnsCache cache, List<String> dnsRootServers, boolean useIPv4, boolean useIPv6) {
+		this.cache = cache != null? cache: createDummyCache();
+		this.dnsRootServers = createDnsRootServers(dnsRootServers, useIPv4, useIPv6);
+		this.useIPv4 = useIPv4;
+		this.useIPv6 = useIPv6;
 	}
 
 	public AnswerProcess lookup(String name, DnsType type) {
 		Question question = engine.createQuestion(name, type, DnsClass.IN);
 		return new AnswerProcess(question);
+	}
+
+	@SuppressWarnings("unused")
+	public static ResolverBuilder usingIPv4(boolean useIPv4) {
+		return new InternalResolverBuilder().usingIPv4(useIPv4);
+	}
+
+	@SuppressWarnings("unused")
+	public static ResolverBuilder usingIPv6(boolean useIPv6) {
+		return new InternalResolverBuilder().usingIPv6(useIPv6);
+	}
+
+	@SuppressWarnings("unused")
+	public static ResolverBuilder withCache(DnsCache cache) {
+		return new InternalResolverBuilder().withCache(cache);
+	}
+
+	@SuppressWarnings("unused")
+	public static ResolverBuilder withRootServers(List<String> rootServers) {
+		return new InternalResolverBuilder().withRootServers(rootServers);
 	}
 
 	private short getNextId() {
@@ -58,13 +67,14 @@ public class Resolver {
 		return id;
 	}
 
-	private Deque<String> getInitialDnsServers(String name) {
+	private Deque<NameServer> getInitialDnsServers(String name) {
 		boolean firstTime = true;
 		List<CachedResourceRecord> nsResult;
 		List<CachedResourceRecord> ipResult;
-		Deque<String> result = new LinkedList<>();
-
-		result.addAll(getShuffledRootServers());
+		Deque<NameServer> result =
+				getShuffledRootServers().stream()
+						.map(root -> new NameServer("[ROOT]", root))
+						.collect(Collectors.toCollection(LinkedList::new));
 
 		while(!name.isEmpty()) {
 
@@ -88,11 +98,21 @@ public class Resolver {
 						cache.removeResourceRecord(ip);
 						continue;
 					}
-					result.addFirst(ip.getData(String.class));
+					addServerAndIps(result, name, ip.getData(String.class));
 				}
 			}
 		}
 		return result;
+	}
+
+	private void addServerAndIps(Deque<NameServer> list, String name, String... ips) {
+		for(NameServer server: list) {
+			if(server.name.equals(name)) {
+				server.addresses.addAll(Arrays.asList(ips));
+				return;
+			}
+		}
+		list.addFirst(new NameServer(name, ips));
 	}
 
 	private List<String> getShuffledRootServers() {
@@ -101,6 +121,56 @@ public class Resolver {
 		return rootServers;
 	}
 
+	private List<String> createDnsRootServers(List<String> rootServers, boolean useIPv4, boolean useIPv6) {
+		List<String> sanitizedServers = new ArrayList<>(rootServers.size());
+		for(String server: rootServers) {
+			if(server == null) throw new InternalException("root server address with null value");
+			if(Utils.isValidIPv4(server)) {
+				if(!useIPv4)
+					throw new InternalException(
+							server + " is an IPv4 address but this resolver is not configured to use IPv4");
+			} else if(Utils.isValidIPv6(server)) {
+				if(!useIPv6)
+					throw new InternalException(
+							server + " is an IPv6 address but this resolver is not configured to use IPv6");
+			} else {
+				throw new InternalException(server + " is not a valid IPv4 or IPv6 address");
+			}
+			sanitizedServers.add(server);
+		}
+		return Collections.unmodifiableList(sanitizedServers);
+	}
+
+	private DnsCache createDummyCache() {
+
+		return new DnsCache() {
+
+			@Override
+			public void addResourceRecord(ResourceRecord resourceRecord) {
+			}
+
+			@Override
+			public List<CachedResourceRecord> getResourceRecords(Question question) {
+				return Collections.emptyList();
+			}
+
+			@Override
+			public void removeResourceRecord(DnsItem resourceRecord) {
+			}
+		};
+
+	}
+
+
+
+	private class InternalException extends RuntimeException {
+		public InternalException(String message) {
+			super(message);
+		}
+	}
+
+
+
 	private enum AnswerProcessStatus {
 		START,
 		OPENING_TCP, CONNECTING_TCP, SENDING_TCP, RECEIVING_TCP,
@@ -108,14 +178,73 @@ public class Resolver {
 		RESULT
 	}
 
+
+
+	private static class InternalResolverBuilder implements ResolverBuilder {
+
+		private DnsCache cache;
+		private List<String> rootServers;
+		private boolean useIPv4 = true;
+		private boolean useIPv6;
+
+		private InternalResolverBuilder() {
+		}
+
+		@Override
+		public Resolver build() {
+			return new Resolver(cache, rootServers, useIPv4, useIPv6);
+		}
+
+		@Override
+		public ResolverBuilder usingIPv4(boolean useIPv4) {
+			this.useIPv4 = useIPv4;
+			return this;
+		}
+
+		@Override
+		public ResolverBuilder usingIPv6(boolean useIPv6) {
+			this.useIPv6 = useIPv6;
+			return this;
+		}
+
+		@Override
+		public ResolverBuilder withCache(DnsCache cache) {
+			this.cache = cache;
+			return this;
+		}
+
+		@Override
+		public ResolverBuilder withRootServers(List<String> rootServers) {
+			this.rootServers = rootServers;
+			return this;
+		}
+	}
+
+
+
+	private class NameServer {
+		String name;
+		List<String> addresses = new LinkedList<>();
+
+		public NameServer(String name, String ... addresses) {
+			this.name = name;
+			this.addresses.addAll(Arrays.asList(addresses));
+		}
+
+		@Override
+		public String toString() {
+			return "NameServer{name='" + name + "', addresses=" + addresses + '}';
+		}
+	}
+
+
+
 	public class AnswerProcess implements Closeable {
 
 		private final String targetName;
 
 		private AnswerProcessStatus processStatus;
-		private Deque<String> dnsServerNames;
-		private Deque<String> dnsServerIps;
-		private Set<String> alreadyUsedNames;
+		private Deque<NameServer> dnsServers;
 		private Set<String> alreadyUsedIps;
 		private String currentIp;
 		private ByteBuffer message;
@@ -164,9 +293,7 @@ public class Resolver {
 			}
 
 			this.processStatus = AnswerProcessStatus.START;
-			this.dnsServerNames = new LinkedList<>();
-			this.dnsServerIps = getInitialDnsServers(question.getDnsName());
-			this.alreadyUsedNames = new HashSet<>();
+			this.dnsServers = getInitialDnsServers(question.getDnsName());
 			this.alreadyUsedIps = new HashSet<>();
 			this.message = createQueryMessage(question);
 		}
@@ -292,7 +419,7 @@ public class Resolver {
 						}
 					}
 				}
-				serverNames.forEach(this::addServerName);
+				serverNames.forEach(name -> addServerAndIps(dnsServers, name));
 			}
 		}
 
@@ -418,31 +545,27 @@ public class Resolver {
 			return result != null || exception != null;
 		}
 
-		private void addServerName(String name) {
-			if(alreadyUsedNames.contains(name)) return;
-			alreadyUsedNames.add(name);
-			dnsServerNames.addFirst(name);
-		}
-
+		// TODO refactorize this to optimize and make more clear
 		private boolean updateDnsServerIps(int timeoutMillis) throws IOException, DnsException {
 			if(recurringProcess == null) {
-				if(dnsServerNames.size() == 0) return true;
-				recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
+				if(dnsServers.size() == 0 || dnsServers.peekFirst().addresses.size() > 0) return true;
+				recurringProcess = Resolver.this.lookup(dnsServers.peekFirst().name, DnsType.ALL); // TODO optimize ALL to bring only A, AAAA and CNAME
 			}
 			boolean added = false;
 			while(recurringProcess != null) {
 				if (!recurringProcess.doIO(timeoutMillis)) return false;
 				for (ResourceRecord record : recurringProcess.getResult()) {
 					if(record.getDnsType() == DnsType.CNAME) {
-						dnsServerNames.addFirst(record.getData(String.class));
+						addServerAndIps(dnsServers, record.getData(String.class));
 						recurringProcess.close();
-						recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
+						recurringProcess = Resolver.this.lookup(dnsServers.peekFirst().name, DnsType.ALL);
 						return false;
 					}
-					if (record.getDnsType() == DnsType.A || record.getDnsType() == DnsType.AAAA) {
+					if (record.getDnsType() == DnsType.A && useIPv4
+							|| record.getDnsType() == DnsType.AAAA && useIPv6) {
 						String ip = record.getData(String.class);
 						if (!alreadyUsedIps.contains(ip)) {
-							dnsServerIps.addFirst(ip);
+							dnsServers.peekFirst().addresses.add(ip);
 							added = true;
 						}
 					}
@@ -450,15 +573,18 @@ public class Resolver {
 				recurringProcess.close();
 				recurringProcess = null;
 				if(!added) {
-					if(dnsServerNames.size() == 0) return true;
-					recurringProcess = Resolver.this.lookup(dnsServerNames.pollFirst(), DnsType.ALL);
+					if(dnsServers.size() == 0) return true;
+					recurringProcess = Resolver.this.lookup(dnsServers.peekFirst().name, DnsType.ALL);
 				}
 			}
 			return true;
 		}
 
 		private String pollNextIp() {
-			String ip = dnsServerIps.pollFirst();
+			NameServer nameServer = dnsServers.peekFirst();
+			List<String> ips = nameServer.addresses;
+			String ip = ips.remove(ips.size() - 1);
+			if(ips.size() == 0) dnsServers.pollFirst();
 			if(ip == null) return null;
 			alreadyUsedIps.add(ip);
 			return ip;

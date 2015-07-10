@@ -11,4 +11,5 @@ public interface DnsCache {
 	List<CachedResourceRecord> getResourceRecords(Question question);
 
 	void removeResourceRecord(DnsItem resourceRecord);
+
 }
