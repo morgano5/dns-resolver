@@ -45,6 +45,29 @@ public class UtilsTest {
 	}
 
 	@Test
+	public void isValidIPv6() {
+
+		assertTrue(Utils.isValidIPv6("[AAAA:BBBB:cccc:dddd:1111:2222:3333:4444]"));
+		assertTrue(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd:1111:2222:3333:4444"));
+		assertTrue(Utils.isValidIPv6("0AAA:B:ccc:0:0:2222:3333:4444"));
+		assertTrue(Utils.isValidIPv6("0AAA:B:ccc::2222:3333:4444"));
+		assertTrue(Utils.isValidIPv6("::1"));
+		assertTrue(Utils.isValidIPv6("A::"));
+		assertTrue(Utils.isValidIPv6("::"));
+		assertTrue(Utils.isValidIPv6("[::]"));
+
+		assertFalse(Utils.isValidIPv6(""));
+		assertFalse(Utils.isValidIPv6("[AAAA:BBBB:cccc:dddd:1111:2222:3333:4444"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd:1111:2222:3333:4444]"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd:1111:2222:3333:4444:5555"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd:1111:2222:33333:4444"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd:1111:2222:3333"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd::1111:2222:3333:4444:5555"));
+		assertFalse(Utils.isValidIPv6("AAAA:BBBB:cccc:dddd::1111:2222:3333:4444"));
+		assertFalse(Utils.isValidIPv6("whatever else"));
+	}
+
+	@Test
 	public void getIntTest() {
 
 		assertEquals(5, Utils.getInt(new byte[]{0, 6, (byte) 255, 0, 5, 9}, 4, 1));

@@ -149,6 +149,50 @@ public class Utils {
 		return PSEUDO_IPV4_PATTERN.matcher(ip).matches();
 	}
 
+	public static boolean isValidIPv6(String ipv6) {
+
+		if(ipv6 == null || ipv6.isEmpty()) return false;
+
+		int numOfGroups = 0;
+		int charsInGroup = 0;
+		int pos = 0;
+		int limit;
+		boolean expectedBracket = ipv6.charAt(0) == '[';
+		boolean doubleColonPresent = false;
+
+		if(expectedBracket) {
+			if(ipv6.charAt(ipv6.length() - 1) != ']') return false;
+			pos++;
+			limit = ipv6.length() - 1;
+		} else {
+			limit = ipv6.length();
+		}
+
+		for(; pos < limit; pos++) {
+			switch(ipv6.charAt(pos)) {
+				case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':case 'a':
+				case 'b':case 'c':case 'd':case 'e':case 'f':case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':
+					charsInGroup++;
+					if(charsInGroup > 4) return false;
+					break;
+				case ':':
+					if(numOfGroups > 0 && charsInGroup == 0) {
+						if(doubleColonPresent) return false;
+						doubleColonPresent = true;
+					} else {
+						numOfGroups++;
+					}
+					if(numOfGroups == 8 || doubleColonPresent && numOfGroups == 7) return false;
+					charsInGroup = 0;
+					break;
+				default:
+					return false;
+			}
+		}
+		return !(numOfGroups != 7 && !doubleColonPresent || numOfGroups > 6 && doubleColonPresent);
+
+	}
+
 	public static String ttlToString(long ttl) {
 		long seconds = ttl % 60;
 		long minutes = (ttl / 60) % 60;

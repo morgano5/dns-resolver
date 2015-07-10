@@ -1,6 +1,7 @@
 package au.id.villar.dns.converter;
 
 import au.id.villar.dns.engine.RRValueConverter;
+import au.id.villar.dns.engine.Utils;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -62,9 +63,10 @@ public class AAAAValueConverter implements RRValueConverter {
 
 	private byte[] createFromString(String str) {
 
-// TODO valid Ipv6
-//		if(!Utils.isValidIPv6(str))
-//			throw new IllegalArgumentException("Invalid IPv6 address: " + str);
+		if(!Utils.isValidIPv6(str))
+			throw new IllegalArgumentException("Invalid IPv6 address: " + str);
+
+		if(str.startsWith("[") && str.endsWith("]")) str = str.substring(1, str.length() - 1);
 
 		byte[] ipv6 = new byte[16];
 		int abbrevPos = str.indexOf("::");
