@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import au.id.villar.dns.AnswerProcess;
 import au.id.villar.dns.DnsException;
 import au.id.villar.dns.Resolver;
 import au.id.villar.dns.cache.SimpleDnsCache;
@@ -45,7 +46,7 @@ public class Test {
 				))
 				.build();
 
-		Resolver.AnswerProcess process = resolver.lookup("villar.me", DnsType.ALL);
+		AnswerProcess process = resolver.lookup("villar.me", DnsType.ALL);
 
 		int timeout = 100;
 		boolean done;

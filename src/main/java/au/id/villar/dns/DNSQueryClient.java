@@ -15,20 +15,16 @@
  */
 package au.id.villar.dns;
 
-import au.id.villar.dns.cache.DnsCache;
+import au.id.villar.dns.engine.*;
 
-import java.util.List;
+import java.io.Closeable;
 
-public interface ResolverBuilder {
+interface DNSQueryClient extends Closeable {
 
-	Resolver build();
+	boolean startQuery(Question question, String address, int timeoutMillis);
 
-	ResolverBuilder usingIPv4(boolean useIPv4);
+	boolean doIO(int timeoutMillis);
 
-	ResolverBuilder usingIPv6(boolean useIPv6);
-
-	ResolverBuilder withCache(DnsCache cache);
-
-	ResolverBuilder withRootServers(List<String> rootServers);
+	DnsMessage getResult() throws DnsException;
 
 }
