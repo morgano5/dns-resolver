@@ -15,20 +15,39 @@
  */
 package au.id.villar.dns;
 
-import au.id.villar.dns.cache.DnsCache;
-
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
-public interface ResolverBuilder {
+class NameServer {
 
-	Resolver build();
+	private final String name;
+	private LinkedList<String> addresses = new LinkedList<>();
 
-	ResolverBuilder usingIPv4(boolean useIPv4);
+	public NameServer(String name, String... addresses) {
+		this.name = name;
+		this.addresses.addAll(Arrays.asList(addresses));
+	}
 
-	ResolverBuilder usingIPv6(boolean useIPv6);
+	public String getName() {
+		return name;
+	}
 
-	ResolverBuilder withCache(DnsCache cache);
+	@Deprecated
+	public List<String> getAddresses() {
+		return addresses;
+	}
 
-	ResolverBuilder withRootServers(List<String> rootServers);
+	public void addIp(String ip) {
+		addresses.add(ip);
+	}
 
+	public String pollIp() {
+		return addresses.pollFirst();
+	}
+
+	@Override
+	public String toString() {
+		return "NameServer{name='" + name + "', addresses=" + addresses + '}';
+	}
 }

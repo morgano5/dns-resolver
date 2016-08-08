@@ -147,8 +147,8 @@ public class DnsEngine {
 	public DnsMessage createMessageFromBuffer(byte [] buffer, int offset) {
 
 		Map<Integer, String> names = new HashMap<>();
-		int auxInt = Utils.getInt(buffer, offset + 2, 2);
 		short id = (short)Utils.getInt(buffer, offset, 2);
+		int auxInt = Utils.getInt(buffer, offset + 2, 2);
 		boolean qr = ((auxInt & 0x8000) != 0);
 		Opcode opcode = Opcode.getOpcode((byte)((auxInt >> 11) & 0xF));
 		boolean aa = ((auxInt & 0x0400) != 0);
