@@ -79,15 +79,18 @@ public class DnsEngine {
 
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsClass registerClass(short number, String mnemonic) {
 		DnsClass valueMnemonic = new DnsClass(number, mnemonic.toUpperCase());
 		return validateAndRegisterInMap(classes, valueMnemonic);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsClass getClass(short classNumber) {
 		return classes.get(classNumber);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsClass getClass(String mnemonic) {
 		for(DnsClass o: classes.values())
 			if(o.getMnemonic().equals(mnemonic))
@@ -95,15 +98,18 @@ public class DnsEngine {
 		return null;
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsType registerType(short number, String mnemonic) {
 		DnsType valueMnemonic = new DnsType(number, mnemonic.toUpperCase());
 		return validateAndRegisterInMap(types, valueMnemonic);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsType getType(short typeNumber) {
 		return types.get(typeNumber);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsType getType(String mnemonic) {
 		for(DnsType o: types.values())
 			if(o.getMnemonic().equals(mnemonic))
@@ -111,6 +117,7 @@ public class DnsEngine {
 		return null;
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public void registerConverter(DnsClass dnsClass, DnsType dnsType, RRValueConverter converter) {
 		if(dnsClass.equals(DnsClass.IN)) {
 			internetConverters.put(dnsType.getValue(), converter);
@@ -124,18 +131,21 @@ public class DnsEngine {
 		}
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public ResourceRecord createResourceRecord(String name, DnsType dnsType, DnsClass dnsClass, long ttl, Object data) {
 		RRValueConverter converter = getConverter(dnsClass, dnsType);
 		Object rawData = converter.convertToRawData(data);
 		return new ResourceRecord(name, dnsType, dnsClass, ttl, converter, rawData);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public Question createQuestion(String qName, DnsType qType, DnsClass qClass) {
 		if(!Utils.isValidDnsName(qName))
 			throw new IllegalArgumentException("DNS name not valid");
 		return new Question(qName, qType, qClass);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsMessage createMessage(short id, boolean isResponse, Opcode opcode, boolean isAuthoritative,
 			boolean wasTruncated, boolean recursionDesired, boolean recursionAvailable, byte reserved,
 			ResponseCode responseCode, Question[] questions, ResourceRecord[] answers, ResourceRecord[] authorities,
@@ -144,6 +154,7 @@ public class DnsEngine {
 				recursionAvailable, reserved, responseCode, questions, answers, authorities, additionals);
 	}
 
+	@SuppressWarnings({"unused", "WeakerAccess"})
 	public DnsMessage createMessageFromBuffer(byte [] buffer, int offset) {
 
 		Map<Integer, String> names = new HashMap<>();
@@ -196,7 +207,7 @@ public class DnsEngine {
 	}
 
 	ParseResult<ResourceRecord> createResourceRecordFromBuffer(byte[] buffer, int offset,
-															   Map<Integer, String> previousNames) {
+			Map<Integer, String> previousNames) {
 		ParseResult<ResourceRecord> r = new ParseResult<>();
 		int length;
 		ParseResult<String> dn = Utils.getDomainName(buffer, offset, previousNames);
