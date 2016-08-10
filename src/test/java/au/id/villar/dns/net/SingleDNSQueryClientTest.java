@@ -42,16 +42,16 @@ public class SingleDNSQueryClientTest {
 
     public static void main(String[] args) throws IOException, DnsException {
         SingleDNSQueryClient client = new SingleDNSQueryClient(DNS_PORT);
-        if(client.startQuery(createQueryMessage(new DnsEngine().createQuestion("villar.me", DnsType.A, DnsClass.IN)), "8.8.8.8", 10000)) {
+        if(client.startQuery(createQueryMessage(new DnsEngine().createQuestion("id.au", DnsType.ALL, DnsClass.IN)), "8.8.8.8"/*"216.69.185.14"*/, 10000)) {
             DnsMessage message = new DnsEngine().createMessageFromBuffer(client.getResult().array(), 0);
             for(int x = 0; x < message.getNumAnswers(); x++) {
-                System.out.println("ANSWER: " + message.getAnswer(x).getData(String.class));
+                System.out.println("ANSWER: " + message.getAnswer(x).getDnsType() + ' ' + message.getAnswer(x).getData(Object.class));
             }
             for(int x = 0; x < message.getNumAuthorities(); x++) {
-                System.out.println("AUTHORITY: " + message.getAuthority(x).getData(SoaValueConverter.SoaData.class));
+                System.out.println("AUTHORITY: " + message.getAnswer(x).getDnsType() + ' ' + message.getAuthority(x).getData(Object.class));
             }
             for(int x = 0; x < message.getNumAdditionals(); x++) {
-                System.out.println("AUTHORITY: " + message.getAdditional(x).getData(String.class));
+                System.out.println("ADDITIONAL: " + message.getAnswer(x).getDnsType() + ' ' + message.getAdditional(x).getData(Object.class));
             }
         } else {
             System.out.println("necesita mas tiempo");

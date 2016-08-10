@@ -24,101 +24,101 @@ import java.util.Iterator;
 
 abstract class AbstractDNSQueryClient implements DNSQueryClient {
 
-	protected enum Status {
-		OPENING,
-		CONNECTING,
-		SENDING,
-		RECEIVING,
-		RESULT,
-		ERROR,
-		CLOSED
-	}
+    protected enum Status {
+        OPENING,
+        CONNECTING,
+        SENDING,
+        RECEIVING,
+        RESULT,
+        ERROR,
+        CLOSED
+    }
 
-	protected final int dnsPort;
-	protected final Selector selector;
+    protected final int dnsPort;
+    protected final Selector selector;
 
-	protected SelectableChannel channel;
-	protected String address;
-	protected ByteBuffer query;
-	protected ByteBuffer result;
-	protected Status status;
+    protected SelectableChannel channel;
+    protected String address;
+    protected ByteBuffer query;
+    protected ByteBuffer result;
+    protected Status status;
 
-	AbstractDNSQueryClient(int dnsPort, Selector selector) throws IOException {
-		this.dnsPort = dnsPort;
-		this.selector = selector;
-	}
+    AbstractDNSQueryClient(int dnsPort, Selector selector) throws IOException {
+        this.dnsPort = dnsPort;
+        this.selector = selector;
+    }
 
-	@Override
-	public boolean startQuery(ByteBuffer query, String address, int timeoutMillis) throws DnsException {
+    @Override
+    public boolean startQuery(ByteBuffer query, String address, int timeoutMillis) throws DnsException {
 
-		if(status == Status.CLOSED) throw new DnsException("Already closed");
+        if(status == Status.CLOSED) throw new DnsException("Already closed");
 
-		try {
+        try {
 
-			IOException exception = close(channel);
-			if(exception != null) throw exception;
+            IOException exception = close(channel);
+            if(exception != null) throw exception;
 
-			this.result = null;
-			this.address = address;
-			this.status = Status.OPENING;
-			this.query = query;
-			return doIO(timeoutMillis);
-		} catch (IOException e) {
-			throw new DnsException(e);
-		}
-	}
+            this.result = null;
+            this.address = address;
+            this.status = Status.OPENING;
+            this.query = query;
+            return doIO(timeoutMillis);
+        } catch (IOException e) {
+            throw new DnsException(e);
+        }
+    }
 
-	@SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-	@Override
-	public boolean doIO(int timeoutMillis) throws DnsException {
-		try {
+    @Override
+    @SuppressWarnings({"ThrowableResultOfMethodCallIgnored", "Duplicates"})
+    public boolean doIO(int timeoutMillis) throws DnsException {
+        try {
 
-			switch(status) {
-				case CLOSED: throw new DnsException("Already closed");
-				case ERROR: throw new DnsException("Invalid state");
-				case RESULT: return true;
-			}
+            switch(status) {
+                case CLOSED: throw new DnsException("Already closed");
+                case ERROR: throw new DnsException("Invalid state");
+                case RESULT: return true;
+            }
 
-			return internalDoIO(timeoutMillis);
-		} catch(IOException | DnsException e) {
-			close(channel);
-			status = Status.ERROR;
-			throw e instanceof DnsException? (DnsException)e: new DnsException(e);
-		}
-	}
+            return internalDoIO(timeoutMillis);
+        } catch(IOException | DnsException e) {
+            close(channel);
+            status = Status.ERROR;
+            throw e instanceof DnsException? (DnsException)e: new DnsException(e);
+        }
+    }
 
-	@Override
-	public ByteBuffer getResult() {
-		return result;
-	}
+    @Override
+    public ByteBuffer getResult() {
+        return result;
+    }
 
-	@Override
-	public void close() throws IOException {
-		IOException exChannel = close(channel);
-		channel = null;
-		status = Status.CLOSED;
-		if(exChannel != null) throw exChannel;
-	}
+    @Override
+    public void close() throws IOException {
+        IOException exChannel = close(channel);
+        channel = null;
+        status = Status.CLOSED;
+        if(exChannel != null) throw exChannel;
+    }
 
-	protected abstract boolean internalDoIO(int timeoutMillis) throws IOException, DnsException;
+    protected abstract boolean internalDoIO(int timeoutMillis) throws IOException, DnsException;
 
-	protected boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
-		if(selector.select(timeoutMillis) == 0) return false;
-		Iterator iterator = selector.selectedKeys().iterator();
-		iterator.next();
-		iterator.remove();
-		((SelectableChannel)channel).register(selector, SelectionKey.OP_READ);
-		((WritableByteChannel)channel).write(query);
-		return true;
-	}
+    protected boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
+        if(selector.select(timeoutMillis) == 0) return false;
+        Iterator iterator = selector.selectedKeys().iterator();
+        iterator.next();
+        iterator.remove();
+        ((SelectableChannel)channel).register(selector, SelectionKey.OP_READ);
+        ((WritableByteChannel)channel).write(query);
+        return true;
+    }
 
-	private IOException close(Channel channel) {
-		try {
-			if(channel != null && channel.isOpen()) channel.close();
-			return null;
-		} catch(IOException e) {
-			return e;
-		}
-	}
+    private IOException close(Channel channel) {
+        try {
+            if(channel != null && channel.isOpen()) channel.close();
+            return null;
+        } catch(IOException e) {
+            return e;
+        }
+    }
 
 }

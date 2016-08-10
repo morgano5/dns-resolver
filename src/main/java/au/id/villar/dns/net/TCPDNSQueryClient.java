@@ -24,72 +24,72 @@ import java.nio.channels.*;
 
 class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
-	private ByteBuffer buffer;
+    private ByteBuffer buffer;
 
-	TCPDNSQueryClient(int dnsPort, Selector selector) throws IOException {
-		super(dnsPort, selector);
-	}
+    TCPDNSQueryClient(int dnsPort, Selector selector) throws IOException {
+        super(dnsPort, selector);
+    }
 
-	protected boolean internalDoIO(int timeoutMillis) throws IOException, DnsException {
+    protected boolean internalDoIO(int timeoutMillis) throws IOException, DnsException {
 
-		SocketChannel tcpChannel = (SocketChannel)channel;
+        SocketChannel tcpChannel = (SocketChannel)channel;
 
-		switch (status) {
+        switch (status) {
 
-			case OPENING:
+            case OPENING:
 
-				channel = tcpChannel = SocketChannel.open();
-				tcpChannel.configureBlocking(false);
-				tcpChannel.register(selector, SelectionKey.OP_CONNECT);
-				status = Status.CONNECTING;
-				tcpChannel.connect(new InetSocketAddress(address, dnsPort));
+                channel = tcpChannel = SocketChannel.open();
+                tcpChannel.configureBlocking(false);
+                tcpChannel.register(selector, SelectionKey.OP_CONNECT);
+                status = Status.CONNECTING;
+                tcpChannel.connect(new InetSocketAddress(address, dnsPort));
 
-			case CONNECTING:
+            case CONNECTING:
 
-				if(selector.select(timeoutMillis) == 0) {
-					status = Status.CONNECTING;
-					return false;
-				}
-				tcpChannel.register(selector, SelectionKey.OP_WRITE);
-				query.position(0);
+                if(selector.select(timeoutMillis) == 0) {
+                    status = Status.CONNECTING;
+                    return false;
+                }
+                tcpChannel.register(selector, SelectionKey.OP_WRITE);
+                query.position(0);
 
-			case SENDING:
+            case SENDING:
 
-				if(!sendDataAndPrepareForReceiving(timeoutMillis, tcpChannel)) {
-					status = Status.SENDING;
-					return false;
-				}
+                if(!sendDataAndPrepareForReceiving(timeoutMillis, tcpChannel)) {
+                    status = Status.SENDING;
+                    return false;
+                }
 
-			case RECEIVING:
+            case RECEIVING:
 
-				if(selector.select(timeoutMillis) == 0) {
-					status = Status.RECEIVING;
-					return false;
-				}
-				receiveTcp();
-				tcpChannel.close();
-				result = buffer;
-				status = Status.RESULT;
+                if(selector.select(timeoutMillis) == 0) {
+                    status = Status.RECEIVING;
+                    return false;
+                }
+                receiveTcp();
+                tcpChannel.close();
+                result = buffer;
+                status = Status.RESULT;
 
-		}
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	private void receiveTcp() throws IOException {
-		int received;
-		buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
-		do {
-			received = ((ReadableByteChannel)channel).read(buffer);
-			if(received > 0) enlargeBuffer();
-		} while(received > 0);
-	}
+    private void receiveTcp() throws IOException {
+        int received;
+        buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
+        do {
+            received = ((ReadableByteChannel)channel).read(buffer);
+            if(received > 0) enlargeBuffer();
+        } while(received > 0);
+    }
 
-	private void enlargeBuffer() {
-		ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() + UDP_DATAGRAM_MAX_SIZE);
-		buffer.flip();
-		newBuffer.put(buffer);
-		buffer = newBuffer;
-	}
+    private void enlargeBuffer() {
+        ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() + UDP_DATAGRAM_MAX_SIZE);
+        buffer.flip();
+        newBuffer.put(buffer);
+        buffer = newBuffer;
+    }
 
 }

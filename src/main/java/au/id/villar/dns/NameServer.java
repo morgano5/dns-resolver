@@ -21,33 +21,33 @@ import java.util.List;
 
 class NameServer {
 
-	private final String name;
-	private LinkedList<String> addresses = new LinkedList<>();
+    private final String name;
+    private LinkedList<String> addresses = new LinkedList<>();
 
-	public NameServer(String name, String... addresses) {
-		this.name = name;
-		this.addresses.addAll(Arrays.asList(addresses));
-	}
+    public NameServer(String name, String... addresses) {
+        this.name = name;
+        this.addresses.addAll(Arrays.asList(addresses));
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	@Deprecated
-	public List<String> getAddresses() {
-		return addresses;
-	}
+    @Deprecated
+    public List<String> getAddresses() {
+        return addresses;
+    }
 
-	public void addIp(String ip) {
-		addresses.add(ip);
-	}
+    public void addIp(String ip) {
+        addresses.add(ip);
+    }
 
-	public String pollIp() {
-		return addresses.pollFirst();
-	}
+    public String pollIp() {
+        return addresses.pollFirst();
+    }
 
-	@Override
-	public String toString() {
-		return "NameServer{name='" + name + "', addresses=" + addresses + '}';
-	}
+    @Override
+    public String toString() {
+        return "NameServer{name='" + name + "', addresses=" + addresses + '}';
+    }
 }

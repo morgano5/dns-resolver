@@ -23,65 +23,65 @@ import java.util.Map;
 
 public class HinfoValueConverter implements RRValueConverter {
 
-	@Override
-	public Object convertToRawData(Object data) {
-		if(!(data instanceof HinfoData))
-			throw new IllegalArgumentException("Only String type supported");
-		return data;
-	}
+    @Override
+    public Object convertToRawData(Object data) {
+        if(!(data instanceof HinfoData))
+            throw new IllegalArgumentException("Only String type supported");
+        return data;
+    }
 
-	@Override
-	public Object getData(byte[] data, int offset, int length, Map<Integer, String> previousNames) {
-		String cpu;
-		String operatingSystem;
-		ParseResult<String> result;
+    @Override
+    public Object getData(byte[] data, int offset, int length, Map<Integer, String> previousNames) {
+        String cpu;
+        String operatingSystem;
+        ParseResult<String> result;
 
-		result = Utils.getText(data, offset);
-		offset += result.bytesUsed;
-		cpu = result.value;
-		result = Utils.getText(data, offset);
-		operatingSystem = result.value;
-		return new HinfoData(cpu, operatingSystem);
-	}
+        result = Utils.getText(data, offset);
+        offset += result.bytesUsed;
+        cpu = result.value;
+        result = Utils.getText(data, offset);
+        operatingSystem = result.value;
+        return new HinfoData(cpu, operatingSystem);
+    }
 
-	@Override
-	public <T> T convertValue(Object rawObject, Class<T> tClass) {
-		if(tClass != HinfoData.class && tClass != Object.class)
-			throw new IllegalArgumentException("Only " + HinfoData.class.getName() + " is supported");
-		return tClass.cast(rawObject);
-	}
+    @Override
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass != HinfoData.class && tClass != Object.class)
+            throw new IllegalArgumentException("Only " + HinfoData.class.getName() + " is supported");
+        return tClass.cast(rawObject);
+    }
 
-	@Override
-	public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
-			Map<String, Integer> nameLinks) {
-		HinfoData value = (HinfoData)rawObject;
-		int start = offset;
-		offset += Utils.writeText(value.getCpu(), array, offset);
-		offset += Utils.writeText(value.getOperatingSystem(), array, offset);
-		return offset - start;
-	}
+    @Override
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        HinfoData value = (HinfoData)rawObject;
+        int start = offset;
+        offset += Utils.writeText(value.getCpu(), array, offset);
+        offset += Utils.writeText(value.getOperatingSystem(), array, offset);
+        return offset - start;
+    }
 
-	public static final class HinfoData {
+    public static final class HinfoData {
 
-		private final String cpu;
-		private final String operatingSystem;
+        private final String cpu;
+        private final String operatingSystem;
 
-		public HinfoData(String cpu, String operatingSystem) {
-			this.cpu = cpu;
-			this.operatingSystem = operatingSystem;
-		}
+        public HinfoData(String cpu, String operatingSystem) {
+            this.cpu = cpu;
+            this.operatingSystem = operatingSystem;
+        }
 
-		public String getCpu() {
-			return cpu;
-		}
+        public String getCpu() {
+            return cpu;
+        }
 
-		public String getOperatingSystem() {
-			return operatingSystem;
-		}
+        public String getOperatingSystem() {
+            return operatingSystem;
+        }
 
-		@Override
-		public String toString() {
-			return "CPU: " + cpu + ", Operating System: " + operatingSystem;
-		}
-	}
+        @Override
+        public String toString() {
+            return "CPU: " + cpu + ", Operating System: " + operatingSystem;
+        }
+    }
 }

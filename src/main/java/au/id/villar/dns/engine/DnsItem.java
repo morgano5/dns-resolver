@@ -17,10 +17,10 @@ package au.id.villar.dns.engine;
 
 public interface DnsItem {
 
-	String getDnsName();
+    String getDnsName();
 
-	DnsType getDnsType();
+    DnsType getDnsType();
 
-	DnsClass getDnsClass();
+    DnsClass getDnsClass();
 
 }

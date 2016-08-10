@@ -21,10 +21,10 @@ import java.util.List;
 
 public interface DnsCache {
 
-	void addResourceRecord(ResourceRecord resourceRecord);
+    void addResourceRecord(ResourceRecord resourceRecord);
 
-	List<CachedResourceRecord> getResourceRecords(Question question);
+    List<CachedResourceRecord> getResourceRecords(Question question);
 
-	void removeResourceRecord(DnsItem resourceRecord);
+    void removeResourceRecord(DnsItem resourceRecord);
 
 }
