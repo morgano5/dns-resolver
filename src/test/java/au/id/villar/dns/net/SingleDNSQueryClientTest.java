@@ -1,11 +1,10 @@
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DnsException;
-import au.id.villar.dns.converter.SoaValueConverter;
-import au.id.villar.dns.engine.DnsClass;
-import au.id.villar.dns.engine.DnsEngine;
-import au.id.villar.dns.engine.DnsMessage;
-import au.id.villar.dns.engine.DnsType;
+import au.id.villar.dns.DNSException;
+import au.id.villar.dns.engine.DNSClass;
+import au.id.villar.dns.engine.DNSEngine;
+import au.id.villar.dns.engine.DNSMessage;
+import au.id.villar.dns.engine.DNSType;
 import au.id.villar.dns.engine.Opcode;
 import au.id.villar.dns.engine.Question;
 import au.id.villar.dns.engine.ResponseCode;
@@ -15,35 +14,21 @@ import java.nio.ByteBuffer;
 
 public class SingleDNSQueryClientTest {
 
-    private static final int UDP_DATAGRAM_MAX_SIZE = 512;
     private static final int DNS_PORT = 53;
 
     private static ByteBuffer createQueryMessage(Question question) {
 
         short id = 15;
-        DnsMessage dnsMessage = new DnsEngine().createMessage(id, false, Opcode.QUERY, false, false, true, false,
+        DNSEngine engine = new DNSEngine();
+        DNSMessage dnsMessage = engine.createMessage(id, false, Opcode.QUERY, false, false, true, false,
                 (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, null, null, null);
-
-        int aproxSize = UDP_DATAGRAM_MAX_SIZE;
-        ByteBuffer buffer = null;
-        while(buffer == null) {
-            try {
-                byte[] testingBuffer = new byte[aproxSize];
-                int actualSize = dnsMessage.writeToBuffer(testingBuffer, 0);
-                buffer = ByteBuffer.allocate(actualSize);
-                buffer.put(testingBuffer, 0, actualSize);
-                buffer.position(0);
-            } catch(IndexOutOfBoundsException e) {
-                aproxSize += UDP_DATAGRAM_MAX_SIZE;
-            }
-        }
-        return buffer;
+        return engine.createBufferFromMessage(dnsMessage);
     }
 
-    public static void main(String[] args) throws IOException, DnsException {
+    public static void main(String[] args) throws IOException, DNSException {
         SingleDNSQueryClient client = new SingleDNSQueryClient(DNS_PORT);
-        if(client.startQuery(createQueryMessage(new DnsEngine().createQuestion("id.au", DnsType.ALL, DnsClass.IN)), "8.8.8.8"/*"216.69.185.14"*/, 10000)) {
-            DnsMessage message = new DnsEngine().createMessageFromBuffer(client.getResult().array(), 0);
+        if(client.startQuery(createQueryMessage(new DNSEngine().createQuestion("id.au", DNSType.ALL, DNSClass.IN)), "8.8.8.8"/*"216.69.185.14"*/, 10000)) {
+            DNSMessage message = new DNSEngine().createMessageFromBuffer(client.getResult().array(), 0);
             for(int x = 0; x < message.getNumAnswers(); x++) {
                 System.out.println("ANSWER: " + message.getAnswer(x).getDnsType() + ' ' + message.getAnswer(x).getData(Object.class));
             }

@@ -41,13 +41,13 @@ public class PininosNet {
 //rawData = new byte[m.getRawSize()];
 //m.writeRawData(rawData, 0);
 
-        DnsEngine dnsEngine = new DnsEngine();
+        DNSEngine dnsEngine = new DNSEngine();
 
-        DnsMessage m = dnsEngine.createMessage((short) 999, false, Opcode.QUERY, false, false, true, false, (byte)0,
+        DNSMessage m = dnsEngine.createMessage((short) 999, false, Opcode.QUERY, false, false, true, false, (byte)0,
                 ResponseCode.NO_ERROR, new Question[] {
 //                        dnsEngine.createQuestion("google.com", DnsType.AAAA, DnsClass.IN),
 //                        dnsEngine.createQuestion("yahoo.com", DnsType.A, DnsClass.IN),//"179.105.0.101.in-addr.arpa"
-                        dnsEngine.createQuestion("villar.me", DnsType.A, DnsClass.IN),
+                        dnsEngine.createQuestion("villar.me", DNSType.A, DNSClass.IN),
                 },
                 new ResourceRecord[0], new ResourceRecord[0], new ResourceRecord[0]);
 
@@ -81,7 +81,7 @@ System.out.println("2");
             if(++mod % printLength == 0) System.out.format("%n");
         } System.out.println("\n\n");
 
-        DnsMessage message = dnsEngine.createMessageFromBuffer(data, 0);
+        DNSMessage message = dnsEngine.createMessageFromBuffer(data, 0);
 
         System.out.println("\n>>" + message.isResponse()
                 + "\n>>" + message.getOpcode()

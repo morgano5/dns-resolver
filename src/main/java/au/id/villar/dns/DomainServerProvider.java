@@ -15,15 +15,6 @@
  */
 package au.id.villar.dns;
 
-import au.id.villar.dns.cache.CachedResourceRecord;
-import au.id.villar.dns.cache.DnsCache;
-import au.id.villar.dns.engine.DnsClass;
-import au.id.villar.dns.engine.DnsEngine;
-import au.id.villar.dns.engine.DnsType;
-import au.id.villar.dns.engine.Question;
-
-import java.util.*;
-
 class DomainServerProvider {
 
 //    private DnsEngine engine;

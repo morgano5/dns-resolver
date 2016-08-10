@@ -15,9 +15,6 @@
  */
 package au.id.villar.dns.engine;
 
-import au.id.villar.dns.engine.DnsEngine;
-import au.id.villar.dns.engine.ParseResult;
-import au.id.villar.dns.engine.ResourceRecord;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -39,7 +36,7 @@ public class ResourceRecordTest {
                 0, 4,
                 (byte)192, (byte)168, 0, 1
         };
-        ParseResult<ResourceRecord> rrResult = new DnsEngine().createResourceRecordFromBuffer(data, 5, null);
+        ParseResult<ResourceRecord> rrResult = new DNSEngine().createResourceRecordFromBuffer(data, 5, null);
 
         byte[] result = new byte[data.length];
 

@@ -17,16 +17,16 @@ package au.id.villar.dns.engine;
 
 import java.util.Map;
 
-public final class ResourceRecord implements DnsItem {
+public final class ResourceRecord implements DNSItem {
 
     private final String dnsName;
-    private final DnsType dnsType;
-    private final DnsClass dnsClass;
+    private final DNSType dnsType;
+    private final DNSClass dnsClass;
     private final long ttl;
     private final RRValueConverter converter;
     private final Object data;
 
-    ResourceRecord(String dnsName, DnsType dnsType, DnsClass dnsClass, long ttl, RRValueConverter converter, Object data) {
+    ResourceRecord(String dnsName, DNSType dnsType, DNSClass dnsClass, long ttl, RRValueConverter converter, Object data) {
         this.dnsName = dnsName;
         this.dnsType = dnsType;
         this.dnsClass = dnsClass;
@@ -39,11 +39,11 @@ public final class ResourceRecord implements DnsItem {
         return dnsName;
     }
 
-    public DnsType getDnsType() {
+    public DNSType getDnsType() {
         return dnsType;
     }
 
-    public DnsClass getDnsClass() {
+    public DNSClass getDnsClass() {
         return dnsClass;
     }
 

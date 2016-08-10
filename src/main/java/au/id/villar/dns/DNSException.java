@@ -13,18 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package au.id.villar.dns.cache;
+package au.id.villar.dns;
 
-import au.id.villar.dns.engine.*;
+public class DNSException extends Exception {
 
-import java.util.List;
+    public DNSException() {
+    }
 
-public interface DnsCache {
+    public DNSException(String message) {
+        super(message);
+    }
 
-    void addResourceRecord(ResourceRecord resourceRecord);
+    public DNSException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-    List<CachedResourceRecord> getResourceRecords(Question question);
-
-    void removeResourceRecord(DnsItem resourceRecord);
+    public DNSException(Throwable cause) {
+        super(cause);
+    }
 
 }

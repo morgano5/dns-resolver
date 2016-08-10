@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class SimpleDnsCache implements DnsCache {
+public class SimpleDNSCache implements DNSCache {
 
 
     private int numEntries = 1000; // todo customize
@@ -53,12 +53,12 @@ public class SimpleDnsCache implements DnsCache {
     }
 
     @Override
-    public void removeResourceRecord(DnsItem resourceRecord) {
+    public void removeResourceRecord(DNSItem resourceRecord) {
         int position = Collections.binarySearch(cachedRecords, resourceRecord, this::compareRecordsForAdding);
         if(position >= 0) cachedRecords.remove(position);
     }
 
-    private int compareRecordsForAdding(DnsItem item1, DnsItem item2) {
+    private int compareRecordsForAdding(DNSItem item1, DNSItem item2) {
         int comp;
         if((comp = item1.getDnsName().compareTo(item2.getDnsName())) != 0)
             return comp;
@@ -69,17 +69,17 @@ public class SimpleDnsCache implements DnsCache {
         return 0;
     }
 
-    private int compareRecordsForSearching(DnsItem item1, DnsItem item2) {
+    private int compareRecordsForSearching(DNSItem item1, DNSItem item2) {
         int comp;
         if((comp = item1.getDnsName().compareTo(item2.getDnsName())) != 0) {
             return comp;
         }
         if((comp = item1.getDnsClass().getMnemonic().compareTo(item2.getDnsClass().getMnemonic())) != 0
-                && item1.getDnsClass() != DnsClass.ANY && item2.getDnsClass() != DnsClass.ANY) {
+                && item1.getDnsClass() != DNSClass.ANY && item2.getDnsClass() != DNSClass.ANY) {
             return comp;
         }
         if((comp = item1.getDnsType().getMnemonic().compareTo(item2.getDnsType().getMnemonic())) != 0
-                && item1.getDnsType() != DnsType.ALL && item2.getDnsType() != DnsType.ALL)
+                && item1.getDnsType() != DNSType.ALL && item2.getDnsType() != DNSType.ALL)
             return comp;
         return 0;
     }

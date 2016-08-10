@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class DnsMessage {
+public class DNSMessage {
 
     public static final int MESSAGE_HEADER_SIZE = 12;
 
@@ -39,7 +39,7 @@ public class DnsMessage {
     private final ResourceRecord[] authorities;
     private final ResourceRecord[] additionals;
 
-    DnsMessage(short id, boolean isResponse, Opcode opcode, boolean isAuthoritatve,
+    DNSMessage(short id, boolean isResponse, Opcode opcode, boolean isAuthoritatve,
             boolean wasTruncated, boolean recursionDesired, boolean recursionAvailable,
             byte reserved, ResponseCode rcode, Question[] questions, ResourceRecord[] answers,
             ResourceRecord[] authorities, ResourceRecord[] additionals) {

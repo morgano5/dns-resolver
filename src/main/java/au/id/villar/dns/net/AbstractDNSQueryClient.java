@@ -15,7 +15,7 @@
  */
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DnsException;
+import au.id.villar.dns.DNSException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -24,7 +24,7 @@ import java.util.Iterator;
 
 abstract class AbstractDNSQueryClient implements DNSQueryClient {
 
-    protected enum Status {
+    enum Status {
         OPENING,
         CONNECTING,
         SENDING,
@@ -34,14 +34,15 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         CLOSED
     }
 
-    protected final int dnsPort;
-    protected final Selector selector;
+    final int dnsPort;
+    final Selector selector;
 
-    protected SelectableChannel channel;
-    protected String address;
-    protected ByteBuffer query;
-    protected ByteBuffer result;
-    protected Status status;
+    SelectableChannel channel;
+
+    String address;
+    ByteBuffer query;
+    ByteBuffer result;
+    Status status;
 
     AbstractDNSQueryClient(int dnsPort, Selector selector) throws IOException {
         this.dnsPort = dnsPort;
@@ -49,9 +50,9 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
     }
 
     @Override
-    public boolean startQuery(ByteBuffer query, String address, int timeoutMillis) throws DnsException {
+    public boolean startQuery(ByteBuffer query, String address, int timeoutMillis) throws DNSException {
 
-        if(status == Status.CLOSED) throw new DnsException("Already closed");
+        if(status == Status.CLOSED) throw new DNSException("Already closed");
 
         try {
 
@@ -64,26 +65,26 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
             this.query = query;
             return doIO(timeoutMillis);
         } catch (IOException e) {
-            throw new DnsException(e);
+            throw new DNSException(e);
         }
     }
 
     @Override
     @SuppressWarnings({"ThrowableResultOfMethodCallIgnored", "Duplicates"})
-    public boolean doIO(int timeoutMillis) throws DnsException {
+    public boolean doIO(int timeoutMillis) throws DNSException {
         try {
 
             switch(status) {
-                case CLOSED: throw new DnsException("Already closed");
-                case ERROR: throw new DnsException("Invalid state");
+                case CLOSED: throw new DNSException("Already closed");
+                case ERROR: throw new DNSException("Invalid state");
                 case RESULT: return true;
             }
 
             return internalDoIO(timeoutMillis);
-        } catch(IOException | DnsException e) {
+        } catch(IOException | DNSException e) {
             close(channel);
             status = Status.ERROR;
-            throw e instanceof DnsException? (DnsException)e: new DnsException(e);
+            throw e instanceof DNSException ? (DNSException)e: new DNSException(e);
         }
     }
 
@@ -100,9 +101,9 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         if(exChannel != null) throw exChannel;
     }
 
-    protected abstract boolean internalDoIO(int timeoutMillis) throws IOException, DnsException;
+    protected abstract boolean internalDoIO(int timeoutMillis) throws IOException, DNSException;
 
-    protected boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
+    boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
         if(selector.select(timeoutMillis) == 0) return false;
         Iterator iterator = selector.selectedKeys().iterator();
         iterator.next();

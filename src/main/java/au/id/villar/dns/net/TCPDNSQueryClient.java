@@ -15,7 +15,7 @@
  */
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DnsException;
+import au.id.villar.dns.DNSException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -30,7 +30,7 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
         super(dnsPort, selector);
     }
 
-    protected boolean internalDoIO(int timeoutMillis) throws IOException, DnsException {
+    protected boolean internalDoIO(int timeoutMillis) throws IOException, DNSException {
 
         SocketChannel tcpChannel = (SocketChannel)channel;
 

@@ -16,29 +16,28 @@
 package au.id.villar.dns;
 
 import au.id.villar.dns.cache.CachedResourceRecord;
-import au.id.villar.dns.cache.DnsCache;
+import au.id.villar.dns.cache.DNSCache;
 import au.id.villar.dns.engine.*;
 
 import java.util.*;
 
 public class Resolver {
 
-    private final DnsEngine engine = new DnsEngine();
+    private final DNSEngine engine = new DNSEngine();
     private final List<String> dnsRootServers;
-    private final DnsCache cache;
+    private final DNSCache cache;
     private final boolean useIPv4;
     private final boolean useIPv6;
 
-    private Resolver(DnsCache cache, List<String> dnsRootServers, boolean useIPv4, boolean useIPv6) {
+    private Resolver(DNSCache cache, List<String> dnsRootServers, boolean useIPv4, boolean useIPv6) {
         this.cache = cache != null? cache: createDummyCache();
         this.dnsRootServers = createDnsRootServers(dnsRootServers, useIPv4, useIPv6);
         this.useIPv4 = useIPv4;
         this.useIPv6 = useIPv6;
     }
 
-    public AnswerProcess lookup(String name, DnsType type) throws DnsException {
-        Question question = engine.createQuestion(name, type, DnsClass.IN);
-        return new AnswerProcess(question, this, engine, getShuffledRootServers(), cache, useIPv4, useIPv6);
+    public AnswerProcess lookup(String name, DNSType type) throws DNSException {
+        return new AnswerProcess(name, type, this, engine, getShuffledRootServers(), cache, useIPv4, useIPv6);
     }
 
     @SuppressWarnings("unused")
@@ -52,7 +51,7 @@ public class Resolver {
     }
 
     @SuppressWarnings("unused")
-    public static ResolverBuilder withCache(DnsCache cache) {
+    public static ResolverBuilder withCache(DNSCache cache) {
         return new ResolverBuilder().withCache(cache);
     }
 
@@ -87,9 +86,9 @@ public class Resolver {
         return Collections.unmodifiableList(sanitizedServers);
     }
 
-    private DnsCache createDummyCache() {
+    private DNSCache createDummyCache() {
 
-        return new DnsCache() {
+        return new DNSCache() {
 
             @Override
             public void addResourceRecord(ResourceRecord resourceRecord) {
@@ -101,7 +100,7 @@ public class Resolver {
             }
 
             @Override
-            public void removeResourceRecord(DnsItem resourceRecord) {
+            public void removeResourceRecord(DNSItem resourceRecord) {
             }
         };
 
@@ -119,7 +118,7 @@ public class Resolver {
 
     public static class ResolverBuilder {
 
-        private DnsCache cache;
+        private DNSCache cache;
         private List<String> rootServers;
         private boolean useIPv4 = true;
         private boolean useIPv6;
@@ -141,7 +140,7 @@ public class Resolver {
             return this;
         }
 
-        public ResolverBuilder withCache(DnsCache cache) {
+        public ResolverBuilder withCache(DNSCache cache) {
             this.cache = cache;
             return this;
         }

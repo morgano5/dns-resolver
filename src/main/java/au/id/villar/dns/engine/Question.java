@@ -20,15 +20,15 @@ import java.util.Map;
 /**
  * Class representing a DNS Standard question (See RFC-1035)
  */
-public final class Question implements DnsItem {
+public final class Question implements DNSItem {
 
     /* Fields for a query [RFC1035] */
     private final String dnsName;
-    private final DnsType dnsType;
-    private final DnsClass dnsClass;
+    private final DNSType dnsType;
+    private final DNSClass dnsClass;
 
 
-    Question(String dnsName, DnsType dnsType, DnsClass dnsClass) {
+    Question(String dnsName, DNSType dnsType, DNSClass dnsClass) {
         this.dnsName = dnsName;
         this.dnsType = dnsType;
         this.dnsClass = dnsClass;
@@ -38,11 +38,11 @@ public final class Question implements DnsItem {
         return dnsName;
     }
 
-    public DnsType getDnsType() {
+    public DNSType getDnsType() {
         return dnsType;
     }
 
-    public DnsClass getDnsClass() {
+    public DNSClass getDnsClass() {
         return dnsClass;
     }
 

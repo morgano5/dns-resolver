@@ -15,12 +15,12 @@
  */
 package au.id.villar.dns.cache;
 
-import au.id.villar.dns.engine.DnsClass;
-import au.id.villar.dns.engine.DnsItem;
-import au.id.villar.dns.engine.DnsType;
+import au.id.villar.dns.engine.DNSClass;
+import au.id.villar.dns.engine.DNSItem;
+import au.id.villar.dns.engine.DNSType;
 import au.id.villar.dns.engine.ResourceRecord;
 
-public class CachedResourceRecord implements DnsItem {
+public class CachedResourceRecord implements DNSItem {
 
     private final ResourceRecord wrapped;
     private final long bestBefore;
@@ -35,7 +35,7 @@ public class CachedResourceRecord implements DnsItem {
     }
 
     @Override
-    public DnsClass getDnsClass() {
+    public DNSClass getDnsClass() {
         return wrapped.getDnsClass();
     }
 
@@ -45,7 +45,7 @@ public class CachedResourceRecord implements DnsItem {
     }
 
     @Override
-    public DnsType getDnsType() {
+    public DNSType getDnsType() {
         return wrapped.getDnsType();
     }
 

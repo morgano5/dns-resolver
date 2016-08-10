@@ -13,23 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package au.id.villar.dns;
+package au.id.villar.dns.engine;
 
-public class DnsException extends Exception {
+public final class DNSClass extends ValueMnemonic {
 
-    public DnsException() {
-    }
+    public static final short IN_VALUE = 1;
+    public static final short ANY_VALUE = 255;
 
-    public DnsException(String message) {
-        super(message);
-    }
+    /**  1 the Internet */
+    public static final DNSClass IN = new DNSClass(IN_VALUE, "IN");
 
-    public DnsException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    /** 255 any class */
+    public static final DNSClass ANY= new DNSClass(ANY_VALUE, "*");
 
-    public DnsException(Throwable cause) {
-        super(cause);
+    DNSClass(short value, String mnemonic) {
+        super(value, mnemonic);
     }
 
 }

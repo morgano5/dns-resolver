@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 import au.id.villar.dns.AnswerProcess;
-import au.id.villar.dns.DnsException;
+import au.id.villar.dns.DNSException;
 import au.id.villar.dns.Resolver;
-import au.id.villar.dns.cache.SimpleDnsCache;
+import au.id.villar.dns.cache.SimpleDNSCache;
 import au.id.villar.dns.engine.*;
 
 import java.util.Arrays;
@@ -28,7 +28,7 @@ public class Test {
     public static void main(String[] args) {
 
         Resolver resolver = Resolver
-                .withCache(new SimpleDnsCache())//.usingIPv4(true).usingIPv6(false)
+                .withCache(new SimpleDNSCache())//.usingIPv4(true).usingIPv6(false)
                 .withRootServers(Arrays.asList(
                     "198.41.0.4",
                     "192.228.79.201",
@@ -50,7 +50,7 @@ public class Test {
 
         try {
 
-            AnswerProcess process = resolver.lookup("mail.villar.id.au", DnsType.ALL);
+            AnswerProcess process = resolver.lookup("mail.villar.id.au", DNSType.ALL);
 
             int timeout = 100;
             boolean done;
@@ -63,7 +63,7 @@ public class Test {
             } while (!done);
 
             result = process.getResult();
-        } catch (DnsException e) {
+        } catch (DNSException e) {
             e.printStackTrace();
         }
 

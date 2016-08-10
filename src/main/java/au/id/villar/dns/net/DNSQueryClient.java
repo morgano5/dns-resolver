@@ -15,7 +15,7 @@
  */
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DnsException;
+import au.id.villar.dns.DNSException;
 
 import java.io.Closeable;
 import java.nio.ByteBuffer;
@@ -24,9 +24,9 @@ interface DNSQueryClient extends Closeable {
 
     int UDP_DATAGRAM_MAX_SIZE = 512;
 
-    boolean startQuery(ByteBuffer question, String address, int timeoutMillis) throws DnsException;
+    boolean startQuery(ByteBuffer question, String address, int timeoutMillis) throws DNSException;
 
-    boolean doIO(int timeoutMillis) throws DnsException;
+    boolean doIO(int timeoutMillis) throws DNSException;
 
     ByteBuffer getResult();
 

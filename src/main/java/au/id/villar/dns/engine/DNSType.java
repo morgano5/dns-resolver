@@ -15,7 +15,7 @@
  */
 package au.id.villar.dns.engine;
 
-public final class DnsType extends ValueMnemonic {
+public final class DNSType extends ValueMnemonic {
 
     public static final short A_VALUE = 1;
     public static final short NS_VALUE = 2;
@@ -42,75 +42,75 @@ public final class DnsType extends ValueMnemonic {
     public static final short ALL_VALUE = 255;
 
     /** 1 a host address */
-    public static final DnsType A = new DnsType(A_VALUE, "A");
+    public static final DNSType A = new DNSType(A_VALUE, "A");
 
     /** 2 an authoritative name server */
-    public static final DnsType NS = new DnsType(NS_VALUE, "NS");
+    public static final DNSType NS = new DNSType(NS_VALUE, "NS");
 
     /** 3 a mail destination (Obsolete - use MX) */
-    public static final DnsType MD = new DnsType(MD_VALUE, "MD");
+    public static final DNSType MD = new DNSType(MD_VALUE, "MD");
 
     /** 4 a mail forwarder (Obsolete - use MX) */
-    public static final DnsType MF = new DnsType(MF_VALUE, "MF");
+    public static final DNSType MF = new DNSType(MF_VALUE, "MF");
 
     /** 5 the canonical name for an alias */
-    public static final DnsType CNAME = new DnsType(CNAME_VALUE, "CNAME");
+    public static final DNSType CNAME = new DNSType(CNAME_VALUE, "CNAME");
 
     /** 6 marks the start of a zone of authority */
-    public static final DnsType SOA = new DnsType(SOA_VALUE, "SOA");
+    public static final DNSType SOA = new DNSType(SOA_VALUE, "SOA");
 
     /** 7 a mailbox domain name (EXPERIMENTAL) */
-    public static final DnsType MB = new DnsType(MB_VALUE, "MB");
+    public static final DNSType MB = new DNSType(MB_VALUE, "MB");
 
     /** 8 a mail group member (EXPERIMENTAL) */
-    public static final DnsType MG = new DnsType(MG_VALUE, "MG");
+    public static final DNSType MG = new DNSType(MG_VALUE, "MG");
 
     /** 9 a mail rename domain name (EXPERIMENTAL) */
-    public static final DnsType MR = new DnsType(MR_VALUE, "MR");
+    public static final DNSType MR = new DNSType(MR_VALUE, "MR");
 
     /** 10 a null RR (EXPERIMENTAL) */
-    public static final DnsType NULL = new DnsType(NULL_VALUE, "NULL");
+    public static final DNSType NULL = new DNSType(NULL_VALUE, "NULL");
 
     /** 11 a well known service description */
-    public static final DnsType WKS = new DnsType(WKS_VALUE, "WKS");
+    public static final DNSType WKS = new DNSType(WKS_VALUE, "WKS");
 
     /** 12 a domain name pointer */
-    public static final DnsType PTR = new DnsType(PTR_VALUE, "PTR");
+    public static final DNSType PTR = new DNSType(PTR_VALUE, "PTR");
 
     /** 13 host information */
-    public static final DnsType HINFO = new DnsType(HINFO_VALUE, "HINFO");
+    public static final DNSType HINFO = new DNSType(HINFO_VALUE, "HINFO");
 
     /** 14 mailbox or mail list information */
-    public static final DnsType MINFO = new DnsType(MINFO_VALUE, "MINFO");
+    public static final DNSType MINFO = new DNSType(MINFO_VALUE, "MINFO");
 
     /** 15 mail exchange */
-    public static final DnsType MX = new DnsType(MX_VALUE, "MX");
+    public static final DNSType MX = new DNSType(MX_VALUE, "MX");
 
     /** 16 text strings */
-    public static final DnsType TXT = new DnsType(TXT_VALUE, "TXT");
+    public static final DNSType TXT = new DNSType(TXT_VALUE, "TXT");
 
 
 
     /** 28 IPv6 address */
-    public static final DnsType AAAA = new DnsType(AAAA_VALUE, "AAAA");
+    public static final DNSType AAAA = new DNSType(AAAA_VALUE, "AAAA");
 
 
 
     /** A request for a transfer of an entire zone */
-    public static final DnsType AXFR = new DnsType(AXFR_VALUE, "AXFR");
+    public static final DNSType AXFR = new DNSType(AXFR_VALUE, "AXFR");
 
     /** A request for mailbox-related records (MB, MG or MR) */
-    public static final DnsType MAILB = new DnsType(MAILB_VALUE, "MAILB");
+    public static final DNSType MAILB = new DNSType(MAILB_VALUE, "MAILB");
 
     /** A request for mail agent RRs (Obsolete - see MX) */
-    public static final DnsType MAILA = new DnsType(MAILA_VALUE, "MAILA");
+    public static final DNSType MAILA = new DNSType(MAILA_VALUE, "MAILA");
 
     /** A request for all records */
-    public static final DnsType ALL = new DnsType(ALL_VALUE, "*");
+    public static final DNSType ALL = new DNSType(ALL_VALUE, "*");
 
 
 
-    DnsType(short value, String mnemonic) {
+    DNSType(short value, String mnemonic) {
         super(value, mnemonic);
     }
 

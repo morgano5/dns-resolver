@@ -60,10 +60,10 @@ public class DnsEngineTest {
                 (byte)192, (byte)168, 0, 1
         };
 
-        ParseResult<ResourceRecord> result = new DnsEngine().createResourceRecordFromBuffer(data, 5, null);
+        ParseResult<ResourceRecord> result = new DNSEngine().createResourceRecordFromBuffer(data, 5, null);
         assertEquals("villar.me", result.value.getDnsName());
-        assertEquals(DnsType.A, result.value.getDnsType());
-        assertEquals(DnsClass.IN, result.value.getDnsClass());
+        assertEquals(DNSType.A, result.value.getDnsType());
+        assertEquals(DNSClass.IN, result.value.getDnsClass());
         assertEquals(5, result.value.getSecondsCache());
         assertEquals("192.168.0.1", result.value.getData(String.class));
         assertEquals(25, result.bytesUsed);
@@ -97,7 +97,7 @@ public class DnsEngineTest {
                 0, 0, 0, 0, 0, 0, 0, 0
         };
 
-        DnsMessage message = new DnsEngine().createMessageFromBuffer(rawData, 5);
+        DNSMessage message = new DNSEngine().createMessageFromBuffer(rawData, 5);
 
         assertEquals(384, message.getId());
         assertTrue(message.isResponse());

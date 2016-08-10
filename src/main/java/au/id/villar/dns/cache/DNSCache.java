@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package au.id.villar.dns.engine;
+package au.id.villar.dns.cache;
 
-public interface DnsItem {
+import au.id.villar.dns.engine.*;
 
-    String getDnsName();
+import java.util.List;
 
-    DnsType getDnsType();
+public interface DNSCache {
 
-    DnsClass getDnsClass();
+    void addResourceRecord(ResourceRecord resourceRecord);
+
+    List<CachedResourceRecord> getResourceRecords(Question question);
+
+    void removeResourceRecord(DNSItem resourceRecord);
 
 }

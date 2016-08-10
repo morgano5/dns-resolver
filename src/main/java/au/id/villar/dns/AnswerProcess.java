@@ -16,7 +16,7 @@
 package au.id.villar.dns;
 
 import au.id.villar.dns.cache.CachedResourceRecord;
-import au.id.villar.dns.cache.DnsCache;
+import au.id.villar.dns.cache.DNSCache;
 import au.id.villar.dns.converter.SoaValueConverter;
 import au.id.villar.dns.engine.*;
 import au.id.villar.dns.net.SingleDNSQueryClient;
@@ -45,9 +45,9 @@ public class AnswerProcess implements Closeable {
     private final AtomicInteger nextId = new AtomicInteger(1);
 
     private Resolver resolver;
-    private DnsEngine engine;
+    private DNSEngine engine;
     private List<String> dnsRootServers;
-    private DnsCache cache;
+    private DNSCache cache;
     private boolean useIPv4;
     private boolean useIPv6;
 
@@ -66,21 +66,24 @@ public class AnswerProcess implements Closeable {
     private List<ResourceRecord> result;
 
     @Deprecated
-    AnswerProcess(Question question,
+    AnswerProcess(String name,
+            DNSType type,
             Resolver resolver,
-            DnsEngine engine,
+            DNSEngine engine,
             List<String> dnsRootServers,
-            DnsCache cache,
+            DNSCache cache,
             boolean useIPv4,
             boolean useIPv6
-    ) throws DnsException {
+    ) throws DNSException {
+
+        Question question = engine.createQuestion(name, type, DNSClass.IN);
 
         status = Status.START;
 
         try {
             this.netClient = new SingleDNSQueryClient(DNS_PORT);
         } catch (IOException e) {
-            throw new DnsException(e);
+            throw new DNSException(e);
         }
 
         result = findInCache(question, cache);
@@ -118,20 +121,20 @@ public class AnswerProcess implements Closeable {
         this.message = createQueryMessage(question);
     }
 
-    public boolean doIO(int timeoutMillis) throws DnsException {
-        DnsException exception = null;
+    public boolean doIO(int timeoutMillis) throws DNSException {
+        DNSException exception = null;
         try {
             boolean finished = internalDoIO(timeoutMillis);
             if(!finished) return false;
         } catch(IOException e) {
-            exception = new DnsException(e);
-        } catch(DnsException e) {
+            exception = new DNSException(e);
+        } catch(DNSException e) {
             exception = e;
         }
         try {
             closeResources();
         } catch (IOException e) {
-            if(exception != null) exception = new DnsException(e);
+            if(exception != null) exception = new DNSException(e);
         }
         if(exception != null) throw exception;
         return true;
@@ -146,7 +149,7 @@ public class AnswerProcess implements Closeable {
         closeResources();
     }
 
-    private List<ResourceRecord> findInCache(Question question, DnsCache cache) {
+    private List<ResourceRecord> findInCache(Question question, DNSCache cache) {
         List<CachedResourceRecord> records = cache.getResourceRecords(question);
         boolean expired = false;
         for(CachedResourceRecord record: records) if(record.isExpired()) { expired = true; break; }
@@ -173,13 +176,13 @@ public class AnswerProcess implements Closeable {
                 name = name.substring(dotPos + 1);
             }
 
-            nsResult = cache.getResourceRecords(engine.createQuestion(name, DnsType.NS, DnsClass.IN));
+            nsResult = cache.getResourceRecords(engine.createQuestion(name, DNSType.NS, DNSClass.IN));
             for(CachedResourceRecord ns: nsResult) {
                 if(ns.isExpired()) {
                     cache.removeResourceRecord(ns);
                     continue;
                 }
-                ipResult = cache.getResourceRecords(engine.createQuestion(ns.getDnsName(), DnsType.A, DnsClass.IN));
+                ipResult = cache.getResourceRecords(engine.createQuestion(ns.getDnsName(), DNSType.A, DNSClass.IN));
                 for(CachedResourceRecord ip: ipResult) {
                     if(ip.isExpired()) {
                         cache.removeResourceRecord(ip);
@@ -216,7 +219,7 @@ public class AnswerProcess implements Closeable {
         return exception;
     }
 
-    private boolean internalDoIO(int timeoutMillis) throws IOException, DnsException {
+    private boolean internalDoIO(int timeoutMillis) throws IOException, DNSException {
 
         while(result == null) {
 
@@ -245,7 +248,7 @@ public class AnswerProcess implements Closeable {
 
                     case RESULT:
 
-                        DnsMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
+                        DNSMessage response = engine.createMessageFromBuffer(buffer.array(), 0);
                         grabAnswersIfExist(response);
                         addExtraInfoToCache(response);
                         status = Status.START;
@@ -268,7 +271,7 @@ public class AnswerProcess implements Closeable {
 
     }
 
-    private void addExtraInfoToCache(DnsMessage response) {
+    private void addExtraInfoToCache(DNSMessage response) {
 
         for(int i = 0; i < response.getNumAdditionals(); i++) {
             cache.addResourceRecord(response.getAdditional(i));
@@ -281,9 +284,9 @@ public class AnswerProcess implements Closeable {
                 cache.addResourceRecord(authority);
                 String name = authority.getDnsName();
                 if(isSelfOrSuperDomain(name, targetName)) {
-                    if(authority.getDnsType().equals(DnsType.NS)) {
+                    if(authority.getDnsType().equals(DNSType.NS)) {
                         serverNames.addFirst(authority.getData(String.class));
-                    } else if(authority.getDnsType().equals(DnsType.SOA)) {
+                    } else if(authority.getDnsType().equals(DNSType.SOA)) {
                         serverNames.addFirst(authority.getData(SoaValueConverter.SoaData.class).getDomainName());
                     }
                 }
@@ -292,7 +295,7 @@ public class AnswerProcess implements Closeable {
         }
     }
 
-    private void grabAnswersIfExist(DnsMessage response) {
+    private void grabAnswersIfExist(DNSMessage response) {
         int numAnswers = response.getNumAnswers();
         if(numAnswers > 0) {
             result = new ArrayList<>(numAnswers);
@@ -303,23 +306,23 @@ public class AnswerProcess implements Closeable {
     }
 
     // TODO refactorize this to optimize and make more clear
-    private boolean updateDnsServerIps(int timeoutMillis) throws IOException, DnsException {
+    private boolean updateDnsServerIps(int timeoutMillis) throws IOException, DNSException {
         if(recurringProcess == null) {
             if(dnsServers.size() == 0 || dnsServers.peekFirst().getAddresses().size() > 0) return true;
-            recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DnsType.ALL); // TODO optimize ALL to bring only A, AAAA and CNAME
+            recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DNSType.ALL); // TODO optimize ALL to bring only A, AAAA and CNAME
         }
         boolean added = false;
         while(recurringProcess != null) {
             if (!recurringProcess.doIO(timeoutMillis)) return false;
             for (ResourceRecord record : recurringProcess.getResult()) {
-                if(record.getDnsType() == DnsType.CNAME) {
+                if(record.getDnsType() == DNSType.CNAME) {
                     addServerAndIps(dnsServers, record.getData(String.class));
                     recurringProcess.close();
-                    recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DnsType.ALL);
+                    recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DNSType.ALL);
                     return false;
                 }
-                if (record.getDnsType() == DnsType.A && useIPv4
-                        || record.getDnsType() == DnsType.AAAA && useIPv6) {
+                if (record.getDnsType() == DNSType.A && useIPv4
+                        || record.getDnsType() == DNSType.AAAA && useIPv6) {
                     String ip = record.getData(String.class);
                     if (!alreadyUsedIps.contains(ip)) {
                         dnsServers.peekFirst().getAddresses().add(ip);
@@ -331,7 +334,7 @@ public class AnswerProcess implements Closeable {
             recurringProcess = null;
             if(!added) {
                 if(dnsServers.size() == 0) return true;
-                recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DnsType.ALL);
+                recurringProcess = resolver.lookup(dnsServers.peekFirst().getName(), DNSType.ALL);
             }
         }
         return true;
@@ -348,25 +351,9 @@ public class AnswerProcess implements Closeable {
     }
 
     private ByteBuffer createQueryMessage(Question question) {
-
         short id = getNextId();
-        DnsMessage dnsMessage = engine.createMessage(id, false, Opcode.QUERY, false, false, true, false,
-                (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, null, null, null);
-
-        int aproxSize = UDP_DATAGRAM_MAX_SIZE;
-        ByteBuffer buffer = null;
-        while(buffer == null) {
-            try {
-                byte[] testingBuffer = new byte[aproxSize];
-                int actualSize = dnsMessage.writeToBuffer(testingBuffer, 0);
-                buffer = ByteBuffer.allocate(actualSize);
-                buffer.put(testingBuffer, 0, actualSize);
-                buffer.position(0);
-            } catch(IndexOutOfBoundsException e) {
-                aproxSize += UDP_DATAGRAM_MAX_SIZE;
-            }
-        }
-        return buffer;
+        DNSMessage dnsMessage = engine.createSimpleQueryMessage(id, question);
+        return engine.createBufferFromMessage(dnsMessage);
     }
 
     private boolean isSelfOrSuperDomain(String superDomain, String subDomain) {

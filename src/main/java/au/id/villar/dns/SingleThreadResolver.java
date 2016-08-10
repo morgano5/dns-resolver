@@ -15,20 +15,6 @@
  */
 package au.id.villar.dns;
 
-import au.id.villar.dns.cache.CachedResourceRecord;
-import au.id.villar.dns.cache.DnsCache;
-import au.id.villar.dns.converter.SoaValueConverter;
-import au.id.villar.dns.engine.*;
-import au.id.villar.dns.net.SingleDNSQueryClient;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.SocketException;
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
 public class SingleThreadResolver /* implements Closeable */ {
 
 //    private static final int UDP_DATAGRAM_MAX_SIZE = 512;

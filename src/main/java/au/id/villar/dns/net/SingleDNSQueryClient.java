@@ -15,7 +15,7 @@
  */
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DnsException;
+import au.id.villar.dns.DNSException;
 import au.id.villar.dns.engine.Utils;
 
 import java.io.IOException;
@@ -51,9 +51,9 @@ public class SingleDNSQueryClient implements DNSQueryClient {
     }
 
     @Override
-    public boolean startQuery(ByteBuffer question, String address, int timeoutMillis) throws DnsException {
+    public boolean startQuery(ByteBuffer question, String address, int timeoutMillis) throws DNSException {
 
-        if(status == Status.CLOSED) throw new DnsException("Already closed");
+        if(status == Status.CLOSED) throw new DNSException("Already closed");
 
         this.query = question;
         this.address = address;
@@ -66,24 +66,24 @@ public class SingleDNSQueryClient implements DNSQueryClient {
 
     @Override
     @SuppressWarnings("Duplicates")
-    public boolean doIO(int timeoutMillis) throws DnsException {
+    public boolean doIO(int timeoutMillis) throws DNSException {
         try {
 
             switch(status) {
-                case CLOSED: throw new DnsException("Already closed");
-                case ERROR: throw new DnsException("Invalid state");
+                case CLOSED: throw new DNSException("Already closed");
+                case ERROR: throw new DNSException("Invalid state");
                 case RESULT: return true;
             }
 
             return internalDoIO(timeoutMillis);
-        } catch(DnsException e) {
+        } catch(DNSException e) {
             status = Status.ERROR;
             throw e;
         }
 
     }
 
-    private boolean internalDoIO(int timeoutMillis) throws DnsException {
+    private boolean internalDoIO(int timeoutMillis) throws DNSException {
 
         switch (status) {
 

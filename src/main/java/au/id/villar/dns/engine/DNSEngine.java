@@ -18,111 +18,114 @@ package au.id.villar.dns.engine;
 import au.id.villar.dns.converter.*;
 
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DnsEngine {
+public class DNSEngine {
 
-    private Map<Short, DnsClass> classes = new HashMap<>();
-    private Map<Short, DnsType> types = new HashMap<>();
-    private Map<DnsClass, Map<DnsType, RRValueConverter>> converters = new HashMap<>();
+    private static final int UDP_DATAGRAM_MAX_SIZE = 512;
+
+    private Map<Short, DNSClass> classes = new HashMap<>();
+    private Map<Short, DNSType> types = new HashMap<>();
+    private Map<DNSClass, Map<DNSType, RRValueConverter>> converters = new HashMap<>();
     private Map<Short, RRValueConverter> internetConverters = new HashMap<>();
     private RRValueConverter defaultConverter = new DefaultConverter();
 
-    public DnsEngine() {
+    public DNSEngine() {
 
-        classes.put(DnsClass.IN_VALUE, DnsClass.IN);
-        classes.put(DnsClass.ANY_VALUE, DnsClass.ANY);
+        classes.put(DNSClass.IN_VALUE, DNSClass.IN);
+        classes.put(DNSClass.ANY_VALUE, DNSClass.ANY);
 
-        types.put(DnsType.A_VALUE, DnsType.A);
-        types.put(DnsType.NS_VALUE, DnsType.NS);
-        types.put(DnsType.MD_VALUE, DnsType.MD);
-        types.put(DnsType.MF_VALUE, DnsType.MF);
-        types.put(DnsType.CNAME_VALUE, DnsType.CNAME);
-        types.put(DnsType.SOA_VALUE, DnsType.SOA);
-        types.put(DnsType.MB_VALUE, DnsType.MB);
-        types.put(DnsType.MG_VALUE, DnsType.MG);
-        types.put(DnsType.MR_VALUE, DnsType.MR);
-        types.put(DnsType.NULL_VALUE, DnsType.NULL);
-        types.put(DnsType.WKS_VALUE, DnsType.WKS);
-        types.put(DnsType.PTR_VALUE, DnsType.PTR);
-        types.put(DnsType.HINFO_VALUE, DnsType.HINFO);
-        types.put(DnsType.MINFO_VALUE, DnsType.MINFO);
-        types.put(DnsType.MX_VALUE, DnsType.MX);
-        types.put(DnsType.TXT_VALUE, DnsType.TXT);
+        types.put(DNSType.A_VALUE, DNSType.A);
+        types.put(DNSType.NS_VALUE, DNSType.NS);
+        types.put(DNSType.MD_VALUE, DNSType.MD);
+        types.put(DNSType.MF_VALUE, DNSType.MF);
+        types.put(DNSType.CNAME_VALUE, DNSType.CNAME);
+        types.put(DNSType.SOA_VALUE, DNSType.SOA);
+        types.put(DNSType.MB_VALUE, DNSType.MB);
+        types.put(DNSType.MG_VALUE, DNSType.MG);
+        types.put(DNSType.MR_VALUE, DNSType.MR);
+        types.put(DNSType.NULL_VALUE, DNSType.NULL);
+        types.put(DNSType.WKS_VALUE, DNSType.WKS);
+        types.put(DNSType.PTR_VALUE, DNSType.PTR);
+        types.put(DNSType.HINFO_VALUE, DNSType.HINFO);
+        types.put(DNSType.MINFO_VALUE, DNSType.MINFO);
+        types.put(DNSType.MX_VALUE, DNSType.MX);
+        types.put(DNSType.TXT_VALUE, DNSType.TXT);
 
-        types.put(DnsType.AAAA_VALUE, DnsType.AAAA);
+        types.put(DNSType.AAAA_VALUE, DNSType.AAAA);
 
-        types.put(DnsType.AXFR_VALUE, DnsType.AXFR);
-        types.put(DnsType.MAILB_VALUE, DnsType.MAILB);
-        types.put(DnsType.MAILA_VALUE, DnsType.MAILA);
-        types.put(DnsType.ALL_VALUE, DnsType.ALL);
+        types.put(DNSType.AXFR_VALUE, DNSType.AXFR);
+        types.put(DNSType.MAILB_VALUE, DNSType.MAILB);
+        types.put(DNSType.MAILA_VALUE, DNSType.MAILA);
+        types.put(DNSType.ALL_VALUE, DNSType.ALL);
 
-        internetConverters.put(DnsType.A_VALUE, new AValueConverter());
-        internetConverters.put(DnsType.NS_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.MD_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.MF_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.CNAME_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.SOA_VALUE, new SoaValueConverter());
-        internetConverters.put(DnsType.MB_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.MG_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.MR_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.NULL_VALUE, new UnknownValueConverter());
-        internetConverters.put(DnsType.WKS_VALUE, new WksValueConverter());
-        internetConverters.put(DnsType.PTR_VALUE, new DomainNameValueConverter());
-        internetConverters.put(DnsType.HINFO_VALUE, new HinfoValueConverter());
-        internetConverters.put(DnsType.MINFO_VALUE, new MinfoValueConverter());
-        internetConverters.put(DnsType.MX_VALUE, new MxValueConverter());
-        internetConverters.put(DnsType.TXT_VALUE, new TxtValueConverter());
+        internetConverters.put(DNSType.A_VALUE, new AValueConverter());
+        internetConverters.put(DNSType.NS_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.MD_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.MF_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.CNAME_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.SOA_VALUE, new SoaValueConverter());
+        internetConverters.put(DNSType.MB_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.MG_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.MR_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.NULL_VALUE, new UnknownValueConverter());
+        internetConverters.put(DNSType.WKS_VALUE, new WksValueConverter());
+        internetConverters.put(DNSType.PTR_VALUE, new DomainNameValueConverter());
+        internetConverters.put(DNSType.HINFO_VALUE, new HinfoValueConverter());
+        internetConverters.put(DNSType.MINFO_VALUE, new MinfoValueConverter());
+        internetConverters.put(DNSType.MX_VALUE, new MxValueConverter());
+        internetConverters.put(DNSType.TXT_VALUE, new TxtValueConverter());
 
-        internetConverters.put(DnsType.AAAA_VALUE, new AAAAValueConverter());
+        internetConverters.put(DNSType.AAAA_VALUE, new AAAAValueConverter());
 
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsClass registerClass(short number, String mnemonic) {
-        DnsClass valueMnemonic = new DnsClass(number, mnemonic.toUpperCase());
+    public DNSClass registerClass(short number, String mnemonic) {
+        DNSClass valueMnemonic = new DNSClass(number, mnemonic.toUpperCase());
         return validateAndRegisterInMap(classes, valueMnemonic);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsClass getClass(short classNumber) {
+    public DNSClass getClass(short classNumber) {
         return classes.get(classNumber);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsClass getClass(String mnemonic) {
-        for(DnsClass o: classes.values())
+    public DNSClass getClass(String mnemonic) {
+        for(DNSClass o: classes.values())
             if(o.getMnemonic().equals(mnemonic))
                 return o;
         return null;
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsType registerType(short number, String mnemonic) {
-        DnsType valueMnemonic = new DnsType(number, mnemonic.toUpperCase());
+    public DNSType registerType(short number, String mnemonic) {
+        DNSType valueMnemonic = new DNSType(number, mnemonic.toUpperCase());
         return validateAndRegisterInMap(types, valueMnemonic);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsType getType(short typeNumber) {
+    public DNSType getType(short typeNumber) {
         return types.get(typeNumber);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsType getType(String mnemonic) {
-        for(DnsType o: types.values())
+    public DNSType getType(String mnemonic) {
+        for(DNSType o: types.values())
             if(o.getMnemonic().equals(mnemonic))
                 return o;
         return null;
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public void registerConverter(DnsClass dnsClass, DnsType dnsType, RRValueConverter converter) {
-        if(dnsClass.equals(DnsClass.IN)) {
+    public void registerConverter(DNSClass dnsClass, DNSType dnsType, RRValueConverter converter) {
+        if(dnsClass.equals(DNSClass.IN)) {
             internetConverters.put(dnsType.getValue(), converter);
         } else {
-            Map<DnsType, RRValueConverter> converterMap = converters.get(dnsClass);
+            Map<DNSType, RRValueConverter> converterMap = converters.get(dnsClass);
             if(converterMap == null) {
                 converterMap = new HashMap<>();
                 converters.put(dnsClass, converterMap);
@@ -132,30 +135,36 @@ public class DnsEngine {
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public ResourceRecord createResourceRecord(String name, DnsType dnsType, DnsClass dnsClass, long ttl, Object data) {
+    public ResourceRecord createResourceRecord(String name, DNSType dnsType, DNSClass dnsClass, long ttl, Object data) {
         RRValueConverter converter = getConverter(dnsClass, dnsType);
         Object rawData = converter.convertToRawData(data);
         return new ResourceRecord(name, dnsType, dnsClass, ttl, converter, rawData);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public Question createQuestion(String qName, DnsType qType, DnsClass qClass) {
+    public Question createQuestion(String qName, DNSType qType, DNSClass qClass) {
         if(!Utils.isValidDnsName(qName))
             throw new IllegalArgumentException("DNS name not valid");
         return new Question(qName, qType, qClass);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsMessage createMessage(short id, boolean isResponse, Opcode opcode, boolean isAuthoritative,
+    public DNSMessage createSimpleQueryMessage(short id, Question question) {
+        return createMessage(id, false, Opcode.QUERY, false, false, true, false,
+                (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, null, null, null);
+    }
+
+    @SuppressWarnings({"unused", "WeakerAccess"})
+    public DNSMessage createMessage(short id, boolean isResponse, Opcode opcode, boolean isAuthoritative,
             boolean wasTruncated, boolean recursionDesired, boolean recursionAvailable, byte reserved,
             ResponseCode responseCode, Question[] questions, ResourceRecord[] answers, ResourceRecord[] authorities,
             ResourceRecord[] additionals) {
-        return new DnsMessage(id, isResponse, opcode, isAuthoritative, wasTruncated, recursionDesired,
+        return new DNSMessage(id, isResponse, opcode, isAuthoritative, wasTruncated, recursionDesired,
                 recursionAvailable, reserved, responseCode, questions, answers, authorities, additionals);
     }
 
     @SuppressWarnings({"unused", "WeakerAccess"})
-    public DnsMessage createMessageFromBuffer(byte [] buffer, int offset) {
+    public DNSMessage createMessageFromBuffer(byte[] buffer, int offset) {
 
         Map<Integer, String> names = new HashMap<>();
         short id = (short)Utils.getInt(buffer, offset, 2);
@@ -173,12 +182,12 @@ public class DnsEngine {
         int nscount = Utils.getInt(buffer, offset + 8, 2);
         int arcount = Utils.getInt(buffer, offset + 10, 2);
 
-        Question[] questions = null;
-        ResourceRecord[] answers = null;
-        ResourceRecord[] authoritatives = null;
-        ResourceRecord[] additionals = null;
+        Question[] questions;
+        ResourceRecord[] answers;
+        ResourceRecord[] authoritatives;
+        ResourceRecord[] additionals;
 
-        offset += DnsMessage.MESSAGE_HEADER_SIZE;
+        offset += DNSMessage.MESSAGE_HEADER_SIZE;
         ParseResult<Question[]> resultQuestions = readResourceRecordGroup(qdcount, buffer, offset, names,
                 this::createQuestionFromBuffer, Question.class);
         questions = resultQuestions.value;
@@ -198,8 +207,27 @@ public class DnsEngine {
 
         if(additionals.length < arcount) tc = true;
 
-        return new DnsMessage(id, qr, opcode, aa, tc, rd, ra, z, rcode, questions, answers, authoritatives,
+        return new DNSMessage(id, qr, opcode, aa, tc, rd, ra, z, rcode, questions, answers, authoritatives,
                 additionals);
+    }
+
+    @SuppressWarnings({"unused", "WeakerAccess"})
+    public ByteBuffer createBufferFromMessage(DNSMessage dnsMessage) {
+
+        int aproxSize = UDP_DATAGRAM_MAX_SIZE;
+        ByteBuffer buffer = null;
+        while(buffer == null) {
+            try {
+                byte[] testingBuffer = new byte[aproxSize];
+                int actualSize = dnsMessage.writeToBuffer(testingBuffer, 0);
+                buffer = ByteBuffer.allocate(actualSize);
+                buffer.put(testingBuffer, 0, actualSize);
+                buffer.position(0);
+            } catch(IndexOutOfBoundsException e) {
+                aproxSize += UDP_DATAGRAM_MAX_SIZE;
+            }
+        }
+        return buffer;
     }
 
     private interface MessageItemReader<T> {
@@ -212,9 +240,9 @@ public class DnsEngine {
         int length;
         ParseResult<String> dn = Utils.getDomainName(buffer, offset, previousNames);
         offset += dn.bytesUsed;
-        DnsType type = getRegisterType((short)Utils.getInt(buffer, offset, 2));
+        DNSType type = getRegisterType((short)Utils.getInt(buffer, offset, 2));
         offset += 2;
-        DnsClass dnsClass = getRegisterClass((short)Utils.getInt(buffer, offset, 2));
+        DNSClass dnsClass = getRegisterClass((short)Utils.getInt(buffer, offset, 2));
         offset += 2;
         long ttl = Utils.getInt(buffer, offset, 4);
         offset += 4;
@@ -231,33 +259,33 @@ public class DnsEngine {
         ParseResult<Question> qr = new ParseResult<>();
         ParseResult<String> dn = Utils.getDomainName(buffer, offset, previousNames);
         String qName = dn.value;
-        DnsType qType = getType((short) Utils.getInt(buffer, offset + dn.bytesUsed, 2));
-        DnsClass qClass = getClass((short) Utils.getInt(buffer, offset + dn.bytesUsed + 2, 2));
+        DNSType qType = getType((short) Utils.getInt(buffer, offset + dn.bytesUsed, 2));
+        DNSClass qClass = getClass((short) Utils.getInt(buffer, offset + dn.bytesUsed + 2, 2));
         qr.value = new Question(qName, qType, qClass);
         qr.bytesUsed = dn.bytesUsed + 4;
         return qr;
     }
 
-    DnsClass getRegisterClass(short classNumber) {
-        DnsClass dnsClass = getClass(classNumber);
+    DNSClass getRegisterClass(short classNumber) {
+        DNSClass dnsClass = getClass(classNumber);
         if(dnsClass == null)
             dnsClass = registerClass(classNumber, "UNKNOWN_" + classNumber);
         return dnsClass;
     }
 
-    DnsType getRegisterType(short typeNumber) {
-        DnsType dnsType = getType(typeNumber);
+    DNSType getRegisterType(short typeNumber) {
+        DNSType dnsType = getType(typeNumber);
         if(dnsType == null)
             dnsType = registerType(typeNumber, "UNKNOWN_" + typeNumber);
         return dnsType;
     }
 
-    RRValueConverter getConverter(DnsClass dnsClass, DnsType dnsType) {
+    RRValueConverter getConverter(DNSClass dnsClass, DNSType dnsType) {
         RRValueConverter converter;
-        if(dnsClass.equals(DnsClass.IN)) {
+        if(dnsClass.equals(DNSClass.IN)) {
             converter = internetConverters.get(dnsType.getValue());
         } else {
-            Map<DnsType, RRValueConverter> converterMap = converters.get(dnsClass);
+            Map<DNSType, RRValueConverter> converterMap = converters.get(dnsClass);
             converter = converterMap == null? null: converterMap.get(dnsType);
         }
         return converter != null? converter: defaultConverter;
