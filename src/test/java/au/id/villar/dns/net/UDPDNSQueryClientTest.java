@@ -28,7 +28,7 @@ public class UDPDNSQueryClientTest {
         try(Selector selector = Selector.open();
             DNSQueryClient client = new UDPDNSQueryClient(53, selector)) {
 
-            DNSMessage response = NetTestUtils.query(client, (short)15, "id.au", DNSType.ALL, DNSClass.IN,
+            DNSMessage response = NetTestUtils.query(client, (short)15, "villar.me", DNSType.ALL, DNSClass.IN,
                     "8.8.8.8", 10_000);
 
             System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n");

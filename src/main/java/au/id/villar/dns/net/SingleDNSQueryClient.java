@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 
+@Deprecated
 public class SingleDNSQueryClient implements DNSQueryClient {
 
     private enum Status {

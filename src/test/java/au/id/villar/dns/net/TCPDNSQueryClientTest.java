@@ -29,19 +29,8 @@ public class TCPDNSQueryClientTest {
         try(Selector selector = Selector.open();
             DNSQueryClient client = new TCPDNSQueryClient(53, selector)) {
 
-            DNSEngine engine = new DNSEngine();
-            Question question = engine.createQuestion("villar.me", DNSType.ALL, DNSClass.IN);
-            DNSMessage message = engine.createSimpleQueryMessage((short)15, question);
-            ByteBuffer rawMessage = engine.createBufferFromMessage(message);
-
-            boolean done = client.startQuery(rawMessage, "8.8.8.8", 10_000);
-            while(!done) {
-                System.out.println("waiting...");
-                Thread.sleep(1000);
-                done = client.doIO(1000);
-            }
-
-            DNSMessage response = engine.createMessageFromBuffer(client.getResult().array(), 0);
+            DNSMessage response = NetTestUtils.query(client, (short)15, "villar.me", DNSType.ALL, DNSClass.IN,
+                    "8.8.8.8", 10_000);
 
             System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n");
 

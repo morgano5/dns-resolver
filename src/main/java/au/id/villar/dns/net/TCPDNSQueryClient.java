@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
+@Deprecated
 class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
     private ByteBuffer buffer;
@@ -46,7 +47,7 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
             case CONNECTING:
 
-                if(selector.select(timeoutMillis) == 0) {
+                if(selector.select(timeoutMillis) == 0 || !tcpChannel.finishConnect()) {
                     status = Status.CONNECTING;
                     return false;
                 }

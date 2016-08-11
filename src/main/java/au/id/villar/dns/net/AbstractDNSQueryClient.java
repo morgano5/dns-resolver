@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.Iterator;
 
+@Deprecated
 abstract class AbstractDNSQueryClient implements DNSQueryClient {
 
     enum Status {
@@ -108,8 +109,13 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         Iterator iterator = selector.selectedKeys().iterator();
         iterator.next();
         iterator.remove();
+
+        // TODO: What if not all the query is sent?
+        int written = ((WritableByteChannel)channel).write(query);
+        System.out.println("written: " + written + ", remaining: " + query.remaining());
+
         ((SelectableChannel)channel).register(selector, SelectionKey.OP_READ);
-        ((WritableByteChannel)channel).write(query);
+
         return true;
     }
 

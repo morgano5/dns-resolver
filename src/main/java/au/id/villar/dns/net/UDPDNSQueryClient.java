@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
+@Deprecated
 class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
     private static final int UDP_RETRY_MILLISECONDS = 5000;

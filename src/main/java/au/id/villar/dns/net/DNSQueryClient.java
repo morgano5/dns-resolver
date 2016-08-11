@@ -20,6 +20,7 @@ import au.id.villar.dns.DNSException;
 import java.io.Closeable;
 import java.nio.ByteBuffer;
 
+@Deprecated
 interface DNSQueryClient extends Closeable {
 
     int UDP_DATAGRAM_MAX_SIZE = 512;
