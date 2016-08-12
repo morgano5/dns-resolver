@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 Rafael Villar Villar
+ * Copyright 2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package au.id.villar.dns.net;
 
-import au.id.villar.dns.DNSException;
-
-import java.io.Closeable;
 import java.nio.ByteBuffer;
-import java.nio.channels.Selector;
 
-interface DNSQueryClient extends Closeable {
-
-    int UDP_DATAGRAM_MAX_SIZE = 512;
-
-    boolean startQuery(ByteBuffer question, String address, int port, Selector selector, ResultListener resultListener)
-            throws DNSException;
-
-    boolean doIO() throws DNSException;
-
+@FunctionalInterface
+public interface ResultListener {
+    void result(ByteBuffer result);
 }

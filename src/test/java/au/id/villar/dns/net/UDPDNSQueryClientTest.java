@@ -20,18 +20,14 @@ import au.id.villar.dns.TestUtils;
 import au.id.villar.dns.engine.*;
 
 import java.io.IOException;
-import java.nio.channels.Selector;
 
 public class UDPDNSQueryClientTest {
 
     public static void main(String[] args) throws IOException, DNSException, InterruptedException {
-        try(Selector selector = Selector.open();
-            DNSQueryClient client = new UDPDNSQueryClient(53, selector)) {
+        try(DNSQueryClient client = new UDPDNSQueryClient()) {
 
-            DNSMessage response = NetTestUtils.query(client, (short)15, "villar.me", DNSType.ALL, DNSClass.IN,
-                    "8.8.8.8", 10_000);
-
-            System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n");
+            NetTestUtils.query(client, (short)15, "id.au", DNSType.ALL, DNSClass.IN,
+                    "37.209.192.5", 53, response -> System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n"));
 
             Thread.sleep(100);
         }

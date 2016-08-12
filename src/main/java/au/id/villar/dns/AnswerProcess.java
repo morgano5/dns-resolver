@@ -25,10 +25,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Selector;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+@Deprecated
 public class AnswerProcess implements Closeable {
 
     private static final int UDP_DATAGRAM_MAX_SIZE = 512;
@@ -81,7 +83,7 @@ public class AnswerProcess implements Closeable {
         status = Status.START;
 
         try {
-            this.netClient = new SingleDNSQueryClient(DNS_PORT);
+            this.netClient = new SingleDNSQueryClient();
         } catch (IOException e) {
             throw new DNSException(e);
         }
@@ -124,7 +126,7 @@ public class AnswerProcess implements Closeable {
     public boolean doIO(int timeoutMillis) throws DNSException {
         DNSException exception = null;
         try {
-            boolean finished = internalDoIO(timeoutMillis);
+            boolean finished = internalDoIO(timeoutMillis, null); // TODO
             if(!finished) return false;
         } catch(IOException e) {
             exception = new DNSException(e);
@@ -219,7 +221,7 @@ public class AnswerProcess implements Closeable {
         return exception;
     }
 
-    private boolean internalDoIO(int timeoutMillis) throws IOException, DNSException {
+    private boolean internalDoIO(int timeoutMillis, Selector selector) throws IOException, DNSException {
 
         while(result == null) {
 
@@ -238,11 +240,11 @@ public class AnswerProcess implements Closeable {
                         }
 
                         status = Status.NET_QUERY;
-                        if(!netClient.startQuery(message, currentIp, timeoutMillis)) return false;
+                        if(!netClient.startQuery(message, currentIp, timeoutMillis, selector)) return false;
 
                     case NET_QUERY:
 
-                        if(!netClient.doIO(timeoutMillis)) return false;
+                        if(!netClient.doIO()) return false;
                         buffer = netClient.getResult();
                         status = Status.RESULT;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,18 +22,15 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
-@Deprecated
 class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
     private static final int UDP_RETRY_MILLISECONDS = 5000;
 
     private long udpTimestamp;
+    private ByteBuffer buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE);
 
-    UDPDNSQueryClient(int dnsPort, Selector selector) throws IOException {
-        super(dnsPort, selector);
-    }
-
-    protected boolean internalDoIO(int timeoutMillis) throws IOException, DNSException {
+    @Override
+    protected boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
 
         DatagramChannel udpChannel = (DatagramChannel)channel;
 
@@ -41,34 +38,36 @@ class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
             case OPENING:
 
+                buffer.clear();
                 udpTimestamp = System.currentTimeMillis();
+                query.position(0);
                 channel = udpChannel = DatagramChannel.open();
                 udpChannel.configureBlocking(false);
-                udpChannel.socket().connect(new InetSocketAddress(address, dnsPort));
-                query.position(0);
-                udpChannel.register(selector, SelectionKey.OP_WRITE);
+                if(selector != null) {
+                    SelectionKey key = udpChannel.register(selector, SelectionKey.OP_WRITE | SelectionKey.OP_READ);
+                    key.attach(this);
+                }
+                udpChannel.connect(new InetSocketAddress(address, port));
 
             case SENDING:
 
-                if(!sendDataAndPrepareForReceiving(timeoutMillis, udpChannel)) {
+                ((WritableByteChannel)channel).write(query);
+                if(query.remaining() > 0) {
                     status = Status.SENDING;
                     return false;
                 }
 
             case RECEIVING:
 
-                if(selector.select(timeoutMillis) == 0) {
+                if(udpChannel.receive(buffer) == null) {
                     if(System.currentTimeMillis() - udpTimestamp > UDP_RETRY_MILLISECONDS) {
                         query.position(0);
-                        udpChannel.register(selector, SelectionKey.OP_WRITE);
                         status = Status.SENDING;
-                        return false;
+                    } else {
+                        status = Status.RECEIVING;
                     }
-                    status = Status.RECEIVING;
                     return false;
                 }
-                ByteBuffer buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE);
-                udpChannel.receive(buffer);
                 udpChannel.close();
                 result = buffer;
                 status = Status.RESULT;

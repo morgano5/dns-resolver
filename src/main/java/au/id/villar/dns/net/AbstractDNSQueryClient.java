@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,7 @@ import au.id.villar.dns.DNSException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.Iterator;
 
-@Deprecated
 abstract class AbstractDNSQueryClient implements DNSQueryClient {
 
     enum Status {
@@ -35,63 +33,47 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         CLOSED
     }
 
-    final int dnsPort;
-    final Selector selector;
-
     SelectableChannel channel;
-
-    String address;
     ByteBuffer query;
     ByteBuffer result;
     Status status;
 
-    AbstractDNSQueryClient(int dnsPort, Selector selector) throws IOException {
-        this.dnsPort = dnsPort;
-        this.selector = selector;
-    }
+    private ResultListener resultListener;
 
     @Override
-    public boolean startQuery(ByteBuffer query, String address, int timeoutMillis) throws DNSException {
+    public boolean startQuery(ByteBuffer query, String address, int port, Selector selector,
+            ResultListener resultListener) throws DNSException {
 
         if(status == Status.CLOSED) throw new DNSException("Already closed");
+        if(query.remaining() == 0) throw new DNSException("Empty query");
 
         try {
 
             IOException exception = close(channel);
             if(exception != null) throw exception;
 
+            this.resultListener = resultListener;
             this.result = null;
-            this.address = address;
             this.status = Status.OPENING;
             this.query = query;
-            return doIO(timeoutMillis);
+            return checkIfResultAndNotify(selector, address, port);
         } catch (IOException e) {
             throw new DNSException(e);
         }
     }
 
     @Override
-    @SuppressWarnings({"ThrowableResultOfMethodCallIgnored", "Duplicates"})
-    public boolean doIO(int timeoutMillis) throws DNSException {
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
+    public boolean doIO() throws DNSException {
         try {
 
-            switch(status) {
-                case CLOSED: throw new DNSException("Already closed");
-                case ERROR: throw new DNSException("Invalid state");
-                case RESULT: return true;
-            }
+            return checkIfStatusValidAndResultReady() || checkIfResultAndNotify(null, null, 0);
 
-            return internalDoIO(timeoutMillis);
         } catch(IOException | DNSException e) {
             close(channel);
             status = Status.ERROR;
             throw e instanceof DNSException ? (DNSException)e: new DNSException(e);
         }
-    }
-
-    @Override
-    public ByteBuffer getResult() {
-        return result;
     }
 
     @Override
@@ -102,20 +84,12 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         if(exChannel != null) throw exChannel;
     }
 
-    protected abstract boolean internalDoIO(int timeoutMillis) throws IOException, DNSException;
+    abstract boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException;
 
-    boolean sendDataAndPrepareForReceiving(int timeoutMillis, Channel channel) throws IOException {
-        if(selector.select(timeoutMillis) == 0) return false;
-        Iterator iterator = selector.selectedKeys().iterator();
-        iterator.next();
-        iterator.remove();
-
-        // TODO: What if not all the query is sent?
-        int written = ((WritableByteChannel)channel).write(query);
-        System.out.println("written: " + written + ", remaining: " + query.remaining());
-
-        ((SelectableChannel)channel).register(selector, SelectionKey.OP_READ);
-
+    private boolean checkIfResultAndNotify(Selector selector, String address, int port)
+            throws IOException, DNSException {
+        if(!internalDoIO(selector, address, port)) return false;
+        resultListener.result(result);
         return true;
     }
 
@@ -125,6 +99,15 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
             return null;
         } catch(IOException e) {
             return e;
+        }
+    }
+
+    private boolean checkIfStatusValidAndResultReady() throws DNSException {
+        switch(status) {
+            case CLOSED: throw new DNSException("Already closed");
+            case ERROR: throw new DNSException("Invalid state");
+            case RESULT: return true;
+            default: return false;
         }
     }
 

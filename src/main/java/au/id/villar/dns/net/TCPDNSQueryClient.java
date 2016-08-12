@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,17 +22,13 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
-@Deprecated
+// TODO revisit this implementation and check https://tools.ietf.org/html/rfc7766
 class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
     private ByteBuffer buffer;
 
-    TCPDNSQueryClient(int dnsPort, Selector selector) throws IOException {
-        super(dnsPort, selector);
-    }
-
-    protected boolean internalDoIO(int timeoutMillis) throws IOException, DNSException {
-
+    @Override
+    protected boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
         SocketChannel tcpChannel = (SocketChannel)channel;
 
         switch (status) {
@@ -41,33 +37,39 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
                 channel = tcpChannel = SocketChannel.open();
                 tcpChannel.configureBlocking(false);
-                tcpChannel.register(selector, SelectionKey.OP_CONNECT);
-                status = Status.CONNECTING;
-                tcpChannel.connect(new InetSocketAddress(address, dnsPort));
-
-            case CONNECTING:
-
-                if(selector.select(timeoutMillis) == 0 || !tcpChannel.finishConnect()) {
+                if(selector != null) {
+                    SelectionKey key = tcpChannel.register(
+                            selector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                    key.attach(this);
+                }
+                if(!tcpChannel.connect(new InetSocketAddress(address, port))) {
                     status = Status.CONNECTING;
                     return false;
                 }
-                tcpChannel.register(selector, SelectionKey.OP_WRITE);
+
+            case CONNECTING:
+
+                if(!tcpChannel.finishConnect()) {
+                    status = Status.CONNECTING;
+                    return false;
+                }
                 query.position(0);
 
             case SENDING:
 
-                if(!sendDataAndPrepareForReceiving(timeoutMillis, tcpChannel)) {
+                tcpChannel.write(query);
+                if(query.remaining() > 0) {
                     status = Status.SENDING;
                     return false;
                 }
 
             case RECEIVING:
 
-                if(selector.select(timeoutMillis) == 0) {
+                buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
+                if(!receiveToEnd()) {
                     status = Status.RECEIVING;
                     return false;
                 }
-                receiveTcp();
                 tcpChannel.close();
                 result = buffer;
                 status = Status.RESULT;
@@ -77,13 +79,17 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
         return true;
     }
 
-    private void receiveTcp() throws IOException {
+    private boolean receiveToEnd() throws IOException {
         int received;
-        buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
         do {
             received = ((ReadableByteChannel)channel).read(buffer);
-            if(received > 0) enlargeBuffer();
+            if(buffer.remaining() == 0) {
+                enlargeBuffer();
+            } else {
+                break;
+            }
         } while(received > 0);
+        return received == -1;
     }
 
     private void enlargeBuffer() {

@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 
 @Deprecated
-public class SingleDNSQueryClient implements DNSQueryClient {
+public class SingleDNSQueryClient {
 
     private enum Status {
         START_QUERY_UDP,
@@ -36,38 +36,38 @@ public class SingleDNSQueryClient implements DNSQueryClient {
         CLOSED
     }
 
-    private final Selector selector;
     private final UDPDNSQueryClient udpClient;
     private final TCPDNSQueryClient tcpClient;
 
+    private Selector selector;
     private String address;
+    private int port;
     private ByteBuffer query;
     private ByteBuffer result;
     private Status status;
 
-    public SingleDNSQueryClient(int dnsPort) throws IOException {
-        this.selector = Selector.open();
-        this.udpClient = new UDPDNSQueryClient(dnsPort, selector);
-        this.tcpClient = new TCPDNSQueryClient(dnsPort, selector);
+    public SingleDNSQueryClient() throws IOException {
+        this.udpClient = new UDPDNSQueryClient();
+        this.tcpClient = new TCPDNSQueryClient();
     }
 
-    @Override
-    public boolean startQuery(ByteBuffer question, String address, int timeoutMillis) throws DNSException {
+    public boolean startQuery(ByteBuffer question, String address, int port, Selector selector, ResultListener resultListener) throws DNSException {
 
         if(status == Status.CLOSED) throw new DNSException("Already closed");
 
-        this.query = question;
+        this.selector = selector;
         this.address = address;
+        this.port = port;
+        this.query = question;
 
         status = (question.position() > UDP_DATAGRAM_MAX_SIZE)? Status.START_QUERY_TCP: Status.START_QUERY_UDP;
 
-        return doIO(timeoutMillis);
+        return internalDoIO();
 
     }
 
     @Override
-    @SuppressWarnings("Duplicates")
-    public boolean doIO(int timeoutMillis) throws DNSException {
+    public boolean doIO() throws DNSException {
         try {
 
             switch(status) {
@@ -76,53 +76,12 @@ public class SingleDNSQueryClient implements DNSQueryClient {
                 case RESULT: return true;
             }
 
-            return internalDoIO(timeoutMillis);
+            return internalDoIO();
         } catch(DNSException e) {
             status = Status.ERROR;
             throw e;
         }
 
-    }
-
-    private boolean internalDoIO(int timeoutMillis) throws DNSException {
-
-        switch (status) {
-
-            case START_QUERY_UDP:
-
-                status = Status.QUERY_UDP;
-                if (!udpClient.startQuery(query, address, timeoutMillis)) return false;
-                status = Status.EVAL_UDP;
-
-            case QUERY_UDP:
-
-                if (status == Status.QUERY_UDP && !udpClient.doIO(timeoutMillis)) return false;
-
-            case EVAL_UDP:
-
-                if (!udpIsTruncated()) {
-                    status = Status.RESULT;
-                    result = udpClient.getResult();
-                    return true;
-                }
-
-            case START_QUERY_TCP:
-
-                status = Status.QUERY_TCP;
-                if(!tcpClient.startQuery(query, address, timeoutMillis)) return false;
-                status = Status.RESULT;
-                result = tcpClient.getResult();
-                return true;
-
-            case QUERY_TCP:
-
-                if (!tcpClient.doIO(timeoutMillis)) return false;
-                status = Status.RESULT;
-                result = tcpClient.getResult();
-
-        }
-
-        return true;
     }
 
     @Override
@@ -135,8 +94,52 @@ public class SingleDNSQueryClient implements DNSQueryClient {
         IOException exception = null;
         try { udpClient.close(); } catch (IOException e) { exception = e; }
         try { tcpClient.close(); } catch (IOException e) { if(exception == null) exception = e; }
-        try { selector.close(); } catch (IOException e) { if(exception == null) exception = e; }
         if(exception != null) throw exception;
+    }
+
+    private boolean internalDoIO() throws DNSException {
+
+        switch (status) {
+
+            case START_QUERY_UDP:
+
+                if (!udpClient.startQuery(query, address, port, selector)) {
+                    status = Status.QUERY_UDP;
+                    return false;
+                }
+                status = Status.EVAL_UDP;
+
+            case QUERY_UDP:
+
+                if (status == Status.QUERY_UDP && !udpClient.doIO()) return false;
+
+            case EVAL_UDP:
+
+                if (!udpIsTruncated()) {
+                    status = Status.RESULT;
+                    result = udpClient.getResult();
+                    return true;
+                }
+
+            case START_QUERY_TCP:
+
+                if(!tcpClient.startQuery(query, address, port, selector)) {
+                    status = Status.QUERY_TCP;
+                    return false;
+                }
+                status = Status.RESULT;
+                result = tcpClient.getResult();
+                return true;
+
+            case QUERY_TCP:
+
+                if (!tcpClient.doIO()) return false;
+                status = Status.RESULT;
+                result = tcpClient.getResult();
+
+        }
+
+        return true;
     }
 
     private boolean udpIsTruncated() {

@@ -1,6 +1,22 @@
+/*
+ * Copyright 2016 Rafael Villar Villar
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package au.id.villar.dns.net;
 
 import au.id.villar.dns.DNSException;
+import au.id.villar.dns.TestUtils;
 import au.id.villar.dns.engine.DNSClass;
 import au.id.villar.dns.engine.DNSEngine;
 import au.id.villar.dns.engine.DNSMessage;
@@ -14,32 +30,15 @@ import java.nio.ByteBuffer;
 
 public class SingleDNSQueryClientTest {
 
-    private static final int DNS_PORT = 53;
+    public static void main(String[] args) throws IOException, DNSException, InterruptedException {
+        try(SingleDNSQueryClient client = new SingleDNSQueryClient()) {
 
-    private static ByteBuffer createQueryMessage(Question question) {
+            DNSMessage response = NetTestUtils.query(client, (short) 15, "villar.me", DNSType.ALL, DNSClass.IN,
+                    /*"37.209.192.5"*/"8.8.8.8", 53);
 
-        short id = 15;
-        DNSEngine engine = new DNSEngine();
-        DNSMessage dnsMessage = engine.createMessage(id, false, Opcode.QUERY, false, false, true, false,
-                (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, null, null, null);
-        return engine.createBufferFromMessage(dnsMessage);
-    }
+            System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n");
 
-    public static void main(String[] args) throws IOException, DNSException {
-        SingleDNSQueryClient client = new SingleDNSQueryClient(DNS_PORT);
-        if(client.startQuery(createQueryMessage(new DNSEngine().createQuestion("id.au", DNSType.ALL, DNSClass.IN)), "8.8.8.8"/*"216.69.185.14"*/, 10000)) {
-            DNSMessage message = new DNSEngine().createMessageFromBuffer(client.getResult().array(), 0);
-            for(int x = 0; x < message.getNumAnswers(); x++) {
-                System.out.println("ANSWER: " + message.getAnswer(x).getDnsType() + ' ' + message.getAnswer(x).getData(Object.class));
-            }
-            for(int x = 0; x < message.getNumAuthorities(); x++) {
-                System.out.println("AUTHORITY: " + message.getAnswer(x).getDnsType() + ' ' + message.getAuthority(x).getData(Object.class));
-            }
-            for(int x = 0; x < message.getNumAdditionals(); x++) {
-                System.out.println("ADDITIONAL: " + message.getAnswer(x).getDnsType() + ' ' + message.getAdditional(x).getData(Object.class));
-            }
-        } else {
-            System.out.println("necesita mas tiempo");
+            Thread.sleep(100);
         }
     }
 
