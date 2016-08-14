@@ -37,7 +37,7 @@ public class Resolver {
     }
 
     public AnswerProcess lookup(String name, DNSType type) throws DNSException {
-        return new AnswerProcess(name, type, this, engine, getShuffledRootServers(), cache, useIPv4, useIPv6);
+        return null;//todo new AnswerProcess(name, type, this, engine, getShuffledRootServers(), cache, useIPv4, useIPv6);
     }
 
     @SuppressWarnings("unused")

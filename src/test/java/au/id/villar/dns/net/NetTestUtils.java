@@ -28,9 +28,9 @@ class NetTestUtils {
 
     private NetTestUtils() {}
 
-    static void query(DNSQueryClient client, short messageId, String name, DNSType dnsType, DNSClass dnsClass,
-            String serverAddress, int port, DNSMessageListener listener)
-            throws IOException, DNSException, InterruptedException {
+    static void query(DNSQueryClient client, boolean forTCP, short messageId, String name, DNSType dnsType,
+            DNSClass dnsClass, String serverAddress, int port, DNSMessageListener listener)
+            throws IOException, InterruptedException {
 
         DNSEngine engine = new DNSEngine();
         Question question = engine.createQuestion(name, dnsType, dnsClass);
@@ -40,7 +40,7 @@ class NetTestUtils {
         try(Selector selector = Selector.open()) {
 
             boolean done = client.startQuery(rawMessage, serverAddress, port, selector,
-                    bytes -> listener.result(engine.createMessageFromBuffer(bytes.array(), 0)));
+                    (b, e) -> listener.result(b != null? engine.createMessageFromBuffer(b.array(), forTCP? 2: 0): null, e));
             while (!done) {
                 System.out.println("waiting...");
                 Thread.sleep(100);
@@ -67,6 +67,6 @@ class NetTestUtils {
     }
 
     @FunctionalInterface
-    interface DNSMessageListener { void result(DNSMessage result); }
+    interface DNSMessageListener { void result(DNSMessage result, DNSException exception); }
 
 }

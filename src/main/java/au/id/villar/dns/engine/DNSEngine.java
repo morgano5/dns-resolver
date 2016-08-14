@@ -219,7 +219,10 @@ public class DNSEngine {
         while(buffer == null) {
             try {
                 byte[] testingBuffer = new byte[aproxSize];
-                int actualSize = dnsMessage.writeToBuffer(testingBuffer, 0);
+                int actualSize = dnsMessage.writeToBuffer(testingBuffer, 2);
+                testingBuffer[0] = (byte)((actualSize >> 8) & 0xFF);
+                testingBuffer[1] = (byte)(actualSize & 0xFF);
+                actualSize += 2;
                 buffer = ByteBuffer.allocate(actualSize);
                 buffer.put(testingBuffer, 0, actualSize);
                 buffer.position(0);

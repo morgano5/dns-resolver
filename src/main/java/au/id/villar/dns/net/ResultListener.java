@@ -16,9 +16,11 @@
 
 package au.id.villar.dns.net;
 
+import au.id.villar.dns.DNSException;
+
 import java.nio.ByteBuffer;
 
 @FunctionalInterface
 public interface ResultListener {
-    void result(ByteBuffer result);
+    void result(ByteBuffer result, DNSException exception);
 }

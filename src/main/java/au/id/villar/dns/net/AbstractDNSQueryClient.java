@@ -42,10 +42,12 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
 
     @Override
     public boolean startQuery(ByteBuffer query, String address, int port, Selector selector,
-            ResultListener resultListener) throws DNSException {
+            ResultListener resultListener) {
 
-        if(status == Status.CLOSED) throw new DNSException("Already closed");
-        if(query.remaining() == 0) throw new DNSException("Empty query");
+        if(query.remaining() == 0) {
+            resultListener.result(null, new DNSException("Empty query"));
+            return true;
+        }
 
         try {
 
@@ -57,14 +59,15 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
             this.status = Status.OPENING;
             this.query = query;
             return checkIfResultAndNotify(selector, address, port);
-        } catch (IOException e) {
-            throw new DNSException(e);
+        } catch (IOException | DNSException e) {
+            resultListener.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
+            return true;
         }
     }
 
     @Override
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-    public boolean doIO() throws DNSException {
+    public boolean doIO() {
         try {
 
             return checkIfStatusValidAndResultReady() || checkIfResultAndNotify(null, null, 0);
@@ -72,7 +75,8 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         } catch(IOException | DNSException e) {
             close(channel);
             status = Status.ERROR;
-            throw e instanceof DNSException ? (DNSException)e: new DNSException(e);
+            resultListener.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
+            return true;
         }
     }
 
@@ -84,12 +88,19 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         if(exChannel != null) throw exChannel;
     }
 
-    abstract boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException;
+    abstract boolean internalDoIO(Selector selector, String address, int port)
+            throws IOException, DNSException;
+
+    void registerAndAttach(Selector selector, int ops) throws ClosedChannelException {
+        if(selector != null) {
+            channel.register(selector, ops).attach(this);
+        }
+    }
 
     private boolean checkIfResultAndNotify(Selector selector, String address, int port)
             throws IOException, DNSException {
         if(!internalDoIO(selector, address, port)) return false;
-        resultListener.result(result);
+        resultListener.result(result, null);
         return true;
     }
 

@@ -25,6 +25,8 @@ import java.nio.channels.*;
 // TODO revisit this implementation and check https://tools.ietf.org/html/rfc7766
 class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
+    private static final int TCP_CLIENT_OPS = SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE;
+
     private ByteBuffer buffer;
 
     @Override
@@ -35,14 +37,11 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
             case OPENING:
 
+                query.position(0);
                 channel = tcpChannel = SocketChannel.open();
                 tcpChannel.configureBlocking(false);
-                if(selector != null) {
-                    SelectionKey key = tcpChannel.register(
-                            selector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                    key.attach(this);
-                }
                 if(!tcpChannel.connect(new InetSocketAddress(address, port))) {
+                    registerAndAttach(selector, TCP_CLIENT_OPS);
                     status = Status.CONNECTING;
                     return false;
                 }
@@ -50,6 +49,7 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
             case CONNECTING:
 
                 if(!tcpChannel.finishConnect()) {
+                    registerAndAttach(selector, TCP_CLIENT_OPS);
                     status = Status.CONNECTING;
                     return false;
                 }
@@ -59,18 +59,21 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
                 tcpChannel.write(query);
                 if(query.remaining() > 0) {
+                    registerAndAttach(selector, TCP_CLIENT_OPS);
                     status = Status.SENDING;
                     return false;
                 }
+                buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
 
             case RECEIVING:
 
-                buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
                 if(!receiveToEnd()) {
+                    registerAndAttach(selector, TCP_CLIENT_OPS);
                     status = Status.RECEIVING;
                     return false;
                 }
                 tcpChannel.close();
+                buffer.flip();
                 result = buffer;
                 status = Status.RESULT;
 

@@ -26,10 +26,9 @@ public class UDPDNSQueryClientTest {
     public static void main(String[] args) throws IOException, DNSException, InterruptedException {
         try(DNSQueryClient client = new UDPDNSQueryClient()) {
 
-            NetTestUtils.query(client, (short)15, "id.au", DNSType.ALL, DNSClass.IN,
-                    "37.209.192.5", 53, response -> System.out.println("\n\n" + TestUtils.messageToString(response) + "\n\n"));
+            NetTestUtils.query(client, false, (short)15, "id.au", DNSType.ALL, DNSClass.IN,
+                    /*"37.209.192.5"*/"8.8.8.8", 53, (r, e) -> System.out.println("\n\n" + (r != null? TestUtils.messageToString(r): e.getMessage()) + "\n\n"));
 
-            Thread.sleep(100);
         }
     }
 
