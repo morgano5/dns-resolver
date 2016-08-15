@@ -58,4 +58,22 @@ public final class Question implements DNSItem {
         return usedBytes;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Question question = (Question) o;
+
+        return dnsName.equals(question.dnsName) && dnsType.equals(question.dnsType) && dnsClass.equals(question.dnsClass);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = dnsName.hashCode();
+        result = 31 * result + dnsType.hashCode();
+        result = 31 * result + dnsClass.hashCode();
+        return result;
+    }
 }

@@ -26,6 +26,8 @@ import java.nio.channels.Selector;
 
 public class DNSRequestClient implements Closeable {
 
+    private static final int DNS_PORT = 53;
+
     private final UDPDNSQueryClient udpClient;
     private final TCPDNSQueryClient tcpClient;
 
@@ -34,11 +36,11 @@ public class DNSRequestClient implements Closeable {
         this.tcpClient = new TCPDNSQueryClient();
     }
 
-    public void startQuery(ByteBuffer question, String address, int port, Selector selector,
+    public void startQuery(ByteBuffer question, String dnsServerAddress, Selector selector,
             ResultListener resultListener) {
 
-        udpClient.startQuery(question, address, port, selector,
-                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, address, port, selector, resultListener));
+        udpClient.startQuery(question, dnsServerAddress, DNS_PORT, selector,
+                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultListener));
 
     }
 
@@ -47,7 +49,7 @@ public class DNSRequestClient implements Closeable {
         return attachment instanceof DNSQueryClient && ((DNSQueryClient)attachment).doIO();
     }
 
-    public ByteBuffer query(ByteBuffer question, String address, int port, long timeout)
+    public ByteBuffer query(ByteBuffer question, String dnsServerAddress, long timeout)
             throws DNSException, InterruptedException {
 
         @SuppressWarnings("WeakerAccess")
@@ -56,7 +58,7 @@ public class DNSRequestClient implements Closeable {
 
         long start = System.currentTimeMillis();
         boolean udpDone = false;
-        boolean done = udpClient.startQuery(question, address, port, null, (r, e) -> {
+        boolean done = udpClient.startQuery(question, dnsServerAddress, DNS_PORT, null, (r, e) -> {
             holder.result = r;
             holder.exception = e;
         });
@@ -68,7 +70,7 @@ public class DNSRequestClient implements Closeable {
                 if(udpDone) {
                     if(!udpIsTruncated(holder.result)) break;
                     question.position(0);
-                    done = tcpClient.startQuery(question, address, port, null, (r, e) -> {
+                    done = tcpClient.startQuery(question, dnsServerAddress, DNS_PORT, null, (r, e) -> {
                         if(r != null) r.position(2);
                         holder.result = r;
                         holder.exception = e;
@@ -91,10 +93,10 @@ public class DNSRequestClient implements Closeable {
     }
 
     private void checkAndDoTCPIfNeeded(ByteBuffer result, DNSException exception, ByteBuffer question, String address,
-            int port, Selector selector, ResultListener resultListener) {
+            Selector selector, ResultListener resultListener) {
         if(udpIsTruncated(result)) {
             question.position(0);
-            tcpClient.startQuery(question, address, port, selector, (r, e) -> {
+            tcpClient.startQuery(question, address, DNS_PORT, selector, (r, e) -> {
                 if(r != null) r.position(2);
                 resultListener.result(r, e);
             });

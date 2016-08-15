@@ -21,6 +21,7 @@ import au.id.villar.dns.engine.*;
 
 import java.util.*;
 
+@Deprecated // This is doing things the wrong way
 public class Resolver {
 
     private final DNSEngine engine = new DNSEngine();

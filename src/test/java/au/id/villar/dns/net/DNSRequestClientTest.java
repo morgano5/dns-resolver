@@ -37,7 +37,7 @@ public class DNSRequestClientTest {
         Question question = engine.createQuestion("id.au", DNSType.ALL, DNSClass.IN);
         DNSMessage message = engine.createSimpleQueryMessage((short)15, question);
         ByteBuffer rawMessage = engine.createBufferFromMessage(message);
-        ByteBuffer result = new DNSRequestClient().query(rawMessage, "8.8.8.8", 53, 10_000);
+        ByteBuffer result = new DNSRequestClient().query(rawMessage, "8.8.8.8", 10_000);
 
         System.out.println(TestUtils.messageToString(engine.createMessageFromBuffer(result.array(),
                 result.position())));
@@ -55,7 +55,7 @@ public class DNSRequestClientTest {
 
         try(Selector selector = Selector.open()) {
             DNSRequestClient client = new DNSRequestClient();
-            client.startQuery(rawMessage, "8.8.8.8", 53, selector, (r, e) -> {
+            client.startQuery(rawMessage, "8.8.8.8", selector, (r, e) -> {
                 System.out.println(r != null? TestUtils.messageToString(
                         engine.createMessageFromBuffer(r.array(), r.position())): e.getMessage());
                 holder.value = true;
