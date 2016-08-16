@@ -17,11 +17,7 @@ package au.id.villar.dns.net;
 
 import au.id.villar.dns.DNSException;
 import au.id.villar.dns.TestUtils;
-import au.id.villar.dns.engine.DNSClass;
-import au.id.villar.dns.engine.DNSEngine;
-import au.id.villar.dns.engine.DNSMessage;
-import au.id.villar.dns.engine.DNSType;
-import au.id.villar.dns.engine.Question;
+import au.id.villar.dns.engine.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -49,8 +45,11 @@ public class DNSRequestClientTest {
         BooleanHolder holder = new BooleanHolder();
 
         DNSEngine engine = new DNSEngine();
-        Question question = engine.createQuestion("id.au", DNSType.ALL, DNSClass.IN);
-        DNSMessage message = engine.createSimpleQueryMessage((short)15, question);
+        Question question = engine.createQuestion("villar.id.au", DNSType.ALL, DNSClass.IN);
+        // DNSMessage message = engine.createSimpleQueryMessage((short)15, question);
+        DNSMessage message = engine.createMessage((short)15, false, Opcode.QUERY, false, false, true, false,
+                (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, new ResourceRecord[0], new ResourceRecord[0],
+                new ResourceRecord[0]);
         ByteBuffer rawMessage = engine.createBufferFromMessage(message);
 
         try(Selector selector = Selector.open()) {
