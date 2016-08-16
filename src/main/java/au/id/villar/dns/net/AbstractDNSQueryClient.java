@@ -97,6 +97,14 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         }
     }
 
+    void checkIdMatch(int responseOffset) throws DNSException {
+        byte[] query = this.query.array();
+        byte[] response = this.result.array();
+        if(query[2] != response[responseOffset] || query[3] != response[responseOffset + 1]) {
+            throw new DNSException("Query and response IDs don't match");
+        }
+    }
+
     private boolean checkIfResultAndNotify(Selector selector, String address, int port)
             throws IOException, DNSException {
         if(!internalDoIO(selector, address, port)) return false;

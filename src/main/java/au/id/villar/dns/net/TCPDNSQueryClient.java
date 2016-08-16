@@ -76,6 +76,7 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
                 buffer.flip();
                 result = buffer;
                 status = Status.RESULT;
+                checkIdMatch(2);
 
         }
 

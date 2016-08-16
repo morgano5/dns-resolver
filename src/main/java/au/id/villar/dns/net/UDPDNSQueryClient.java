@@ -72,6 +72,7 @@ class UDPDNSQueryClient extends AbstractDNSQueryClient {
                 buffer.flip();
                 result = buffer;
                 status = Status.RESULT;
+                checkIdMatch(0);
 
         }
 
