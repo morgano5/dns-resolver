@@ -20,7 +20,21 @@ import au.id.villar.dns.DNSException;
 
 import java.nio.ByteBuffer;
 
+/**
+ * Interface used to report when a result from a name server is ready.
+ * @see DNSRequestClient
+ */
 @FunctionalInterface
 public interface ResultListener {
+
+    /**
+     * Method to be called when a result from a name server is ready. If the operation was successful then
+     * {@code result} will contain the raw response from the server and {@code exception} will be {@literal null};
+     * otherwise {@code result} will be {@literal null} and {@code exception} will contain the exception thrown
+     * with information of the error.
+     * @param result The raw response from the name server, it can be {@literal null} if an error happened.
+     * @param exception The exception thrown if there was an error. It will be {@literal null} if the operation was
+     *                  successful.
+     */
     void result(ByteBuffer result, DNSException exception);
 }

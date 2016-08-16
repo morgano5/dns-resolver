@@ -19,12 +19,44 @@ import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 
+/**
+ * Interface implemented by UDP and TCP clients to perform a query. The process is as follows:
+ * <ol>
+ *     <li>{@link #startQuery(ByteBuffer, String, int, Selector, ResultListener)} is executed, if it returns
+ *     {@literal true} then there is a result and the process has finished. Otherwise, wait of a reasonable amount of
+ *     time (if not using a selector) of wait for the selector to unblock to continue the process.
+ *     </li>
+ *     <li>{@link #doIO()} is executed. If it returns false then wait of a reasonable amount of time (if not using a
+ *     selector) of wait for the selector to unblock again to continue the process and repeat this same step until it
+ *     returns {@literal true}.</li>
+ * </ol>
+ */
 interface DNSQueryClient extends Closeable {
 
     int UDP_DATAGRAM_MAX_SIZE = 512;
 
+    /**
+     * Starts a query process. If {@code selector} is {@literal null} then the specified selector will be used to
+     * monitor when the communication channel is ready, so the thread unblocked by selector can continue by invoking
+     * {@link #doIO()} on this same object, which is attached to the {@link java.nio.channels.SelectionKey} taken
+     * from the selector.
+     * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
+     *                 size of the query.
+     * @param address The address (IPv4, IPv6) of the name server.
+     * @param port The port where the name server is listening for connections.
+     * @param selector The selector used to monitor whenever the communications channel is ready for an operation. It
+     *                 can be null
+     * @param resultListener A listener to be invoked when there is a result from the server or when there is an error.
+     * @return {@literal true} if the operation could be completely done and {@code resultListener} was invoked with
+     * the result. {@literal false otherwise}
+     */
     boolean startQuery(ByteBuffer question, String address, int port, Selector selector, ResultListener resultListener);
 
+    /**
+     * Tries to continue the query process.
+     * @return {@literal true} if the operation could be completely done and {@code resultListener} was invoked with
+     * the result. {@literal false otherwise}
+     */
     boolean doIO();
 
 }
