@@ -242,38 +242,48 @@ public class AnswerProcess implements Closeable {
 
     private interface SearchingTask {
 
-        List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs)
+        List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
                 throws DNSException, InterruptedException;
 
     }
 
+    private final AtomicInteger nextId = new AtomicInteger(1);
     private final DNSEngine engine;
     private final DNSRequestClient netClient = new DNSRequestClient();
     private DNSCache cache;
-
+    private List<String> dnsRootServers;
     private Deque<SearchingTask> pendingTasks = new LinkedList<>();
 
-    public AnswerProcess(DNSEngine engine, DNSCache cache) {
+    public AnswerProcess(DNSEngine engine, DNSCache cache, List<String> dnsRootServers) {
         this.engine = engine;
         this.cache = cache;
+        this.dnsRootServers = dnsRootServers;
     }
 
-    List<ResourceRecord> lookUp(String name, DNSType type, long timeout) throws DNSException, InterruptedException {
-        return null;
+    public List<DNSItem> lookUp(String name, DNSType type, long timeout) throws DNSException, InterruptedException {
+        pendingTasks.offerFirst(new StartSearch(name, type));
+
+        SearchingTask task;
+        List<? extends DNSItem> lastResult = null;
+        while((task = pendingTasks.pollFirst()) != null) {
+            lastResult = task.tryToGetRRs(lastResult, timeout);
+        }
+        return lastResult != null?
+                lastResult.stream().map(r -> (DNSItem)r).collect(Collectors.toList()):
+                Collections.emptyList();
     }
 
     private class StartSearch implements SearchingTask {
 
         private Question question;
-        private long timeout;
+        private Deque<DNSItem> sources = new LinkedList<>();
 
-        public StartSearch(String name, DNSType type, long timeout) {
+        public StartSearch(String name, DNSType type) {
             this.question = engine.createQuestion(name, type, DNSClass.IN);
-            this.timeout = timeout;
         }
 
         @Override
-        public List<ResourceRecord> tryToGetRRs(List<? extends DNSItem> neededRRs)
+        public List<ResourceRecord> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
                 throws DNSException, InterruptedException {
 
             if(neededRRs == null) {
@@ -281,15 +291,80 @@ public class AnswerProcess implements Closeable {
                 if(result.size() > 0) {
                     return result.stream().map(CachedResourceRecord::getResourceRecord).collect(Collectors.toList());
                 } else {
-                    // TODO add a NS search to stack
+                    pendingTasks.offerFirst(this);
+                    pendingTasks.offerFirst(new NameServerSearch(question.getDnsName()));
                     return Collections.emptyList();
                 }
             }
 
-            return null;
+            neededRRs.forEach(sources::offerLast);
+            DNSItem source;
+            while((source = sources.pollLast()) != null) {
+
+                String nameServerAddress = null;
+                if (source.getDnsType().equals(DNSType.NS)) {
+                    if(!source.getDnsName().equals(".")) {
+                        pendingTasks.offerFirst(this);
+                        pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
+                        return Collections.emptyList();
+                    }
+                    nameServerAddress = dnsRootServers.get(0); // TODO get a random
+                } else if (source.getDnsType().equals(DNSType.A)) {
+                    nameServerAddress = source.getDnsName(); // no mames, ya vete a dormir
+                } else {
+                    continue;
+                }
+
+                ByteBuffer result = netClient.query(createQueryMessage(question), source.getDnsName(), timeout);
+
+                DNSMessage message = engine.createMessageFromBuffer(result.array(), result.position());
+                List<ResourceRecord> rrs = new ArrayList<>();
+                for(int c = 0; c < message.getNumAnswers(); c++) rrs.add(message.getAnswer(c));
+                return rrs;
+            }
+
+            return Collections.emptyList();
         }
     }
 
+    private class NameServerSearch implements SearchingTask {
+
+        private String name;
+
+        public NameServerSearch(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
+                throws DNSException, InterruptedException {
+            while(!name.equals("")) {
+                Question question = engine.createQuestion(name, DNSType.A, DNSClass.IN);
+                List<CachedResourceRecord> result = cache.getResourceRecords(question, timeout);
+                if (result.size() > 0) return result;
+                int dotPos;
+                if((dotPos = name.indexOf('.')) != -1) name = name.substring(dotPos + 1); else break;
+            }
+
+            return Collections.singletonList(new DNSItem() {
+                @Override public String getDnsName() { return "."; }
+                @Override public DNSType getDnsType() { return DNSType.NS; }
+                @Override public DNSClass getDnsClass() { return DNSClass.IN; }
+            });
+        }
+    }
+
+    private ByteBuffer createQueryMessage(Question question) {
+        short id = getNextId();
+        DNSMessage dnsMessage = engine.createSimpleQueryMessage(id, question);
+        return engine.createBufferFromMessage(dnsMessage);
+    }
+
+    private short getNextId() {
+        short id = (short)nextId.incrementAndGet();
+        if (id == 0) id = (short)nextId.incrementAndGet();
+        return id;
+    }
 
 
 
@@ -340,10 +415,7 @@ public class AnswerProcess implements Closeable {
     }
 
 
-    private final AtomicInteger nextId = new AtomicInteger(1);
-
     private Resolver resolver;
-    private List<String> dnsRootServers;
     private boolean useIPv4;
     private boolean useIPv6;
 
@@ -640,20 +712,8 @@ public class AnswerProcess implements Closeable {
         return ip;
     }
 
-    private ByteBuffer createQueryMessage(Question question) {
-        short id = getNextId();
-        DNSMessage dnsMessage = engine.createSimpleQueryMessage(id, question);
-        return engine.createBufferFromMessage(dnsMessage);
-    }
-
     private boolean isSelfOrSuperDomain(String superDomain, String subDomain) {
         return superDomain.length() <= subDomain.length() && subDomain.endsWith(superDomain);
-    }
-
-    private short getNextId() {
-        short id = (short)nextId.incrementAndGet();
-        if (id == 0) id = (short)nextId.incrementAndGet();
-        return id;
     }
 
 }

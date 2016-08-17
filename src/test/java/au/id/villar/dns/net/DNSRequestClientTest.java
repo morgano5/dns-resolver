@@ -39,7 +39,7 @@ public class DNSRequestClientTest {
                 result.position())));
     }
 
-    public static void main2(String[] args) throws IOException, InterruptedException {
+    public static void main3(String[] args) throws IOException, InterruptedException {
 
         class BooleanHolder { volatile boolean value; }
         BooleanHolder holder = new BooleanHolder();

@@ -84,8 +84,6 @@ public class DNSRequestClient implements Closeable {
     public ByteBuffer query(ByteBuffer question, String dnsServerAddress, long timeout)
             throws DNSException, InterruptedException {
 
-        @SuppressWarnings("WeakerAccess")
-        class ResultHolder { ByteBuffer result; DNSException exception; }
         ResultHolder holder = new ResultHolder();
 
         long start = System.currentTimeMillis();
@@ -96,7 +94,7 @@ public class DNSRequestClient implements Closeable {
         });
         while(!done && !Thread.interrupted()) {
             if(System.currentTimeMillis() - start > timeout) break;
-            Thread.sleep(10);
+            Thread.sleep(1);
             if(!udpDone) {
                 udpDone = udpClient.doIO() == NO_OP;
                 if(udpDone) {
@@ -142,6 +140,8 @@ public class DNSRequestClient implements Closeable {
         try { tcpClient.close(); } catch (IOException e) { if(exception == null) exception = e; }
         if(exception != null) throw exception;
     }
+
+    private class ResultHolder { ByteBuffer result; DNSException exception; }
 
     private void checkAndDoTCPIfNeeded(ByteBuffer result, DNSException exception, ByteBuffer question, String address,
             Selector selector, ResultHandler resultHandler) {
