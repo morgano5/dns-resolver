@@ -17,6 +17,8 @@ package au.id.villar.dns.cache;
 
 import au.id.villar.dns.engine.*;
 
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,7 +43,7 @@ public class SimpleDNSCache implements DNSCache {
     }
 
     @Override
-    public List<CachedResourceRecord> getResourceRecords(Question question) {
+    public List<CachedResourceRecord> getResourceRecords(Question question, long timeout) {
         int position = Collections.binarySearch(cachedRecords, question, this::compareRecordsForSearching);
         while(position >= 0 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) position--;
         List<CachedResourceRecord> list = new ArrayList<>();
@@ -56,6 +58,16 @@ public class SimpleDNSCache implements DNSCache {
     public void removeResourceRecord(DNSItem resourceRecord) {
         int position = Collections.binarySearch(cachedRecords, resourceRecord, this::compareRecordsForAdding);
         if(position >= 0) cachedRecords.remove(position);
+    }
+
+    @Override
+    public boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler) {
+        handler.handleResourceRecord(getResourceRecords(question, 0), null);
+        return true;
+    }
+
+    @Override
+    public void processAttachment(SelectionKey selectionKey) {
     }
 
     private int compareRecordsForAdding(DNSItem item1, DNSItem item2) {

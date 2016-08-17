@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.util.Iterator;
+import java.util.Set;
 
 class NetTestUtils {
 
@@ -43,24 +43,17 @@ class NetTestUtils {
                     (b, e) -> listener.result(b != null? engine.createMessageFromBuffer(b.array(), forTCP? 2: 0): null, e));
             while (!done) {
                 System.out.println("waiting...");
-                Thread.sleep(100);
-                if(selector.select() == 0) {
-                    System.out.println("...");
-                    //selector.
-                    //System.out.println("selector was interrupted or woken up");
-                    //break;
-                }
-                done = true;
-                Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-                while(iterator.hasNext()) {
-                    SelectionKey key = iterator.next();
-                    boolean finished = ((DNSQueryClient)key.attachment()).doIO();
-                    if(finished) {
-                        iterator.remove();
+                selector.select();
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                for(SelectionKey key: selectedKeys) {
+                    int ops = ((DNSQueryClient)key.attachment()).doIO();
+                    if(ops != 0) {
+                        key.interestOps(ops);
                     } else {
-                        done = false;
+                        done = true;
                     }
                 }
+                selectedKeys.clear();
             }
         }
 

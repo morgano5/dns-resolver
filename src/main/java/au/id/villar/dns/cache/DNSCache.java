@@ -15,15 +15,23 @@
  */
 package au.id.villar.dns.cache;
 
+import au.id.villar.dns.DNSException;
 import au.id.villar.dns.engine.*;
 
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.List;
 
 public interface DNSCache {
 
     void addResourceRecord(ResourceRecord resourceRecord);
 
-    List<CachedResourceRecord> getResourceRecords(Question question);
+    List<CachedResourceRecord> getResourceRecords(Question question, long timeout)
+            throws DNSException, InterruptedException;
+
+    boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler);
+
+    void processAttachment(SelectionKey selectionKey);
 
     void removeResourceRecord(DNSItem resourceRecord);
 

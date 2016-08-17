@@ -38,14 +38,14 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
     ByteBuffer result;
     Status status;
 
-    private ResultListener resultListener;
+    private ResultHandler resultHandler;
 
     @Override
     public boolean startQuery(ByteBuffer query, String address, int port, Selector selector,
-            ResultListener resultListener) {
+            ResultHandler resultHandler) {
 
         if(query.remaining() == 0) {
-            resultListener.result(null, new DNSException("Empty query"));
+            resultHandler.result(null, new DNSException("Empty query"));
             return true;
         }
 
@@ -54,29 +54,29 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
             IOException exception = close(channel);
             if(exception != null) throw exception;
 
-            this.resultListener = resultListener;
+            this.resultHandler = resultHandler;
             this.result = null;
             this.status = Status.OPENING;
             this.query = query;
-            return checkIfResultAndNotify(selector, address, port);
+            return checkIfResultAndNotify(selector, address, port) == NO_OP;
         } catch (IOException | DNSException e) {
-            resultListener.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
+            resultHandler.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
             return true;
         }
     }
 
     @Override
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-    public boolean doIO() {
+    public int doIO() {
         try {
 
-            return checkIfStatusValidAndResultReady() || checkIfResultAndNotify(null, null, 0);
+            return checkIfStatusValidAndResultReady()? 0: checkIfResultAndNotify(null, null, 0);
 
         } catch(IOException | DNSException e) {
             close(channel);
             status = Status.ERROR;
-            resultListener.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
-            return true;
+            resultHandler.result(null, e instanceof DNSException? (DNSException)e: new DNSException(e));
+            return 0;
         }
     }
 
@@ -88,7 +88,7 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         if(exChannel != null) throw exChannel;
     }
 
-    abstract boolean internalDoIO(Selector selector, String address, int port)
+    abstract int internalDoIO(Selector selector, String address, int port)
             throws IOException, DNSException;
 
     void registerAndAttach(Selector selector, int ops) throws ClosedChannelException {
@@ -105,11 +105,11 @@ abstract class AbstractDNSQueryClient implements DNSQueryClient {
         }
     }
 
-    private boolean checkIfResultAndNotify(Selector selector, String address, int port)
+    private int checkIfResultAndNotify(Selector selector, String address, int port)
             throws IOException, DNSException {
-        if(!internalDoIO(selector, address, port)) return false;
-        resultListener.result(result, null);
-        return true;
+        int ops = internalDoIO(selector, address, port);
+        if(ops == NO_OP) resultHandler.result(result, null);
+        return ops;
     }
 
     private IOException close(Channel channel) {

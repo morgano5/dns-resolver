@@ -17,8 +17,11 @@ package au.id.villar.dns;
 
 import au.id.villar.dns.cache.CachedResourceRecord;
 import au.id.villar.dns.cache.DNSCache;
+import au.id.villar.dns.cache.ResourceRecordHandler;
 import au.id.villar.dns.engine.*;
 
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.*;
 
 @Deprecated // This is doing things the wrong way
@@ -96,12 +99,22 @@ public class Resolver {
             }
 
             @Override
-            public List<CachedResourceRecord> getResourceRecords(Question question) {
+            public List<CachedResourceRecord> getResourceRecords(Question question, long timeout) {
                 return Collections.emptyList();
             }
 
             @Override
             public void removeResourceRecord(DNSItem resourceRecord) {
+            }
+
+            @Override
+            public boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler) {
+                handler.handleResourceRecord(Collections.emptyList(), null);
+                return true;
+            }
+
+            @Override
+            public void processAttachment(SelectionKey selectionKey) {
             }
         };
 

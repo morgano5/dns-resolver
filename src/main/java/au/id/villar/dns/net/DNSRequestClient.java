@@ -24,9 +24,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 
+import static au.id.villar.dns.net.DNSQueryClient.NO_OP;
+
 /**
  * Handles queries to a name server. First, a query is done using UPD, port 53; if there is an answer it is reported
- * to the specified {@link ResultListener} and the process finishes, unless the response if truncated in which case
+ * to the specified {@link ResultHandler} and the process finishes, unless the response if truncated in which case
  * another query is performed using TCP, port 53.
  */
 public class DNSRequestClient implements Closeable {
@@ -37,7 +39,7 @@ public class DNSRequestClient implements Closeable {
     private final TCPDNSQueryClient tcpClient;
 
     /** Constructor */
-    public DNSRequestClient() throws IOException {
+    public DNSRequestClient() {
         this.udpClient = new UDPDNSQueryClient();
         this.tcpClient = new TCPDNSQueryClient();
     }
@@ -45,43 +47,27 @@ public class DNSRequestClient implements Closeable {
     /**
      * Starts a query using a {@link Selector}. The specified selector will be used to monitor when the communication
      * channel is ready, so the thread unblocked by selector can continue by invoking
-     * {@link #processAttachement(SelectionKey)}.
+     * {@link #processAttachment(SelectionKey)}.
      * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
      *                 size of the query.
      * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
      * @param selector The selector used to monitor whenever the communications channel is ready for an operation.
-     * @param resultListener A listener to be invoked when there is a result from the server or when there is an error.
+     * @param resultHandler A listener to be invoked when there is a result from the server or when there is an error.
      * @return {@literal true} if the operation was already finished and the given {@link Selector} was not used.
      * {@literal false} otherwise.
-     * @see #checkAndDoTCPIfNeeded(ByteBuffer, DNSException, ByteBuffer, String, Selector, ResultListener)
+     * @see #checkAndDoTCPIfNeeded(ByteBuffer, DNSException, ByteBuffer, String, Selector, ResultHandler)
      * @see Selector
      * @see SelectionKey
      */
     public boolean startQuery(ByteBuffer question, String dnsServerAddress, Selector selector,
-            ResultListener resultListener) {
+            ResultHandler resultHandler) {
 
         if(selector == null) throw new NullPointerException("selector cannot be null");
-        if(resultListener == null) throw new NullPointerException("resultListener cannot be null");
+        if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
 
         return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, selector,
-                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultListener));
+                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultHandler));
 
-    }
-
-    /**
-     * Utility method to check after a {@link Selector#select()} if the resulting {@link SelectionKey}s contain
-     * a pending task from this task and execute it if this is the case.
-     * @param selectionKey Any key to test, taken from {@link Selector#selectedKeys()} after a
-     * {@link Selector#select()}.
-     * @return {@literal true} if the attachment contained a task from this object and was successfully finished (i. e.
-     * this {@link SelectionKey} can be removed from the {@link Selector}). {@literal false} otherwise.
-     * @see #startQuery(ByteBuffer, String, Selector, ResultListener)
-     * @see Selector
-     * @see SelectionKey
-     */
-    public boolean processAttachement(SelectionKey selectionKey) {
-        Object attachment = selectionKey.attachment();
-        return attachment instanceof DNSQueryClient && ((DNSQueryClient)attachment).doIO();
     }
 
     /**
@@ -112,7 +98,7 @@ public class DNSRequestClient implements Closeable {
             if(System.currentTimeMillis() - start > timeout) break;
             Thread.sleep(10);
             if(!udpDone) {
-                udpDone = udpClient.doIO();
+                udpDone = udpClient.doIO() == NO_OP;
                 if(udpDone) {
                     if(!udpIsTruncated(holder.result)) break;
                     question.position(0);
@@ -123,11 +109,30 @@ public class DNSRequestClient implements Closeable {
                     });
                 }
             } else {
-                done = tcpClient.doIO();
+                done = tcpClient.doIO() == NO_OP;
             }
         }
         if(holder.exception != null) throw holder.exception;
         return holder.result;
+    }
+
+    /**
+     * Utility method to check after a {@link Selector#select()} if the resulting {@link SelectionKey}s contain
+     * a pending task comming from a DNS query iniciated by a {@link DNSRequestClient} and execute it if this is the
+     * case. If the {@link SelectionKey}'s attachment is not related to any {@link DNSRequestClient} then it just does
+     * nothing.
+     * @param selectionKey Any key to test, taken from {@link Selector#selectedKeys()} after a
+     * {@link Selector#select()}.
+     * @see #startQuery(ByteBuffer, String, Selector, ResultHandler)
+     * @see Selector
+     * @see SelectionKey
+     */
+    public static void processAttachment(SelectionKey selectionKey) {
+        Object attachment = selectionKey.attachment();
+        if(selectionKey.isValid() && attachment instanceof DNSQueryClient) {
+            int ops = ((DNSQueryClient)attachment).doIO();
+            if(ops != NO_OP) selectionKey.interestOps(ops);
+        }
     }
 
     @Override
@@ -139,19 +144,19 @@ public class DNSRequestClient implements Closeable {
     }
 
     private void checkAndDoTCPIfNeeded(ByteBuffer result, DNSException exception, ByteBuffer question, String address,
-            Selector selector, ResultListener resultListener) {
+            Selector selector, ResultHandler resultHandler) {
         if(udpIsTruncated(result)) {
             question.position(0);
             tcpClient.startQuery(question, address, DNS_PORT, selector, (r, e) -> {
                 if(r != null) r.position(2);
-                resultListener.result(r, e);
+                resultHandler.result(r, e);
             });
         } else {
-            resultListener.result(result, exception);
+            resultHandler.result(result, exception);
         }
     }
 
-    private boolean udpIsTruncated(ByteBuffer udpResult) {
+    private static boolean udpIsTruncated(ByteBuffer udpResult) {
         return udpResult != null && (Utils.getInt(udpResult.array(), 2, 2) & 0x0200) != 0;
     }
 }

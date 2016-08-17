@@ -25,12 +25,10 @@ import java.nio.channels.*;
 // TODO revisit this implementation and check https://tools.ietf.org/html/rfc7766
 class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
-    private static final int TCP_CLIENT_OPS = SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE;
-
     private ByteBuffer buffer;
 
     @Override
-    protected boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
+    protected int internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
         SocketChannel tcpChannel = (SocketChannel)channel;
 
         switch (status) {
@@ -41,17 +39,17 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
                 channel = tcpChannel = SocketChannel.open();
                 tcpChannel.configureBlocking(false);
                 if(!tcpChannel.connect(new InetSocketAddress(address, port))) {
-                    registerAndAttach(selector, TCP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_CONNECT);
                     status = Status.CONNECTING;
-                    return false;
+                    return SelectionKey.OP_CONNECT;
                 }
 
             case CONNECTING:
 
                 if(!tcpChannel.finishConnect()) {
-                    registerAndAttach(selector, TCP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_CONNECT);
                     status = Status.CONNECTING;
-                    return false;
+                    return SelectionKey.OP_CONNECT;
                 }
                 query.position(0);
 
@@ -59,20 +57,21 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
                 tcpChannel.write(query);
                 if(query.remaining() > 0) {
-                    registerAndAttach(selector, TCP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_WRITE);
                     status = Status.SENDING;
-                    return false;
+                    return SelectionKey.OP_WRITE;
                 }
                 buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE * 2);
 
             case RECEIVING:
 
                 if(!receiveToEnd()) {
-                    registerAndAttach(selector, TCP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_READ);
                     status = Status.RECEIVING;
-                    return false;
+                    return SelectionKey.OP_READ;
                 }
                 tcpChannel.close();
+                channel = null;
                 buffer.flip();
                 result = buffer;
                 status = Status.RESULT;
@@ -80,7 +79,7 @@ class TCPDNSQueryClient extends AbstractDNSQueryClient {
 
         }
 
-        return true;
+        return NO_OP;
     }
 
     private boolean receiveToEnd() throws IOException {

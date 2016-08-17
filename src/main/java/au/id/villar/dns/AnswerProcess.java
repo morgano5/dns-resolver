@@ -20,6 +20,7 @@ import au.id.villar.dns.cache.DNSCache;
 import au.id.villar.dns.converter.SoaValueConverter;
 import au.id.villar.dns.engine.DNSClass;
 import au.id.villar.dns.engine.DNSEngine;
+import au.id.villar.dns.engine.DNSItem;
 import au.id.villar.dns.engine.DNSMessage;
 import au.id.villar.dns.engine.DNSType;
 import au.id.villar.dns.engine.Question;
@@ -236,8 +237,101 @@ If the response contains a CNAME, the search is restarted at the CNAME
 unless the response has the data for the canonical name or if the CNAME
 is the answer itself.
 */
-@Deprecated
+@Deprecated // This class is doing thing the wrong way and needs some serious refactoring
 public class AnswerProcess implements Closeable {
+
+    private interface SearchingTask {
+
+        List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs)
+                throws DNSException, InterruptedException;
+
+    }
+
+    private final DNSEngine engine;
+    private final DNSRequestClient netClient = new DNSRequestClient();
+    private DNSCache cache;
+
+    private Deque<SearchingTask> pendingTasks = new LinkedList<>();
+
+    public AnswerProcess(DNSEngine engine, DNSCache cache) {
+        this.engine = engine;
+        this.cache = cache;
+    }
+
+    List<ResourceRecord> lookUp(String name, DNSType type, long timeout) throws DNSException, InterruptedException {
+        return null;
+    }
+
+    private class StartSearch implements SearchingTask {
+
+        private Question question;
+        private long timeout;
+
+        public StartSearch(String name, DNSType type, long timeout) {
+            this.question = engine.createQuestion(name, type, DNSClass.IN);
+            this.timeout = timeout;
+        }
+
+        @Override
+        public List<ResourceRecord> tryToGetRRs(List<? extends DNSItem> neededRRs)
+                throws DNSException, InterruptedException {
+
+            if(neededRRs == null) {
+                List<CachedResourceRecord> result = cache.getResourceRecords(question, timeout);
+                if(result.size() > 0) {
+                    return result.stream().map(CachedResourceRecord::getResourceRecord).collect(Collectors.toList());
+                } else {
+                    // TODO add a NS search to stack
+                    return Collections.emptyList();
+                }
+            }
+
+            return null;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// TODO remove the code blow when it's not needed any more
+
 
     private enum Status {
         START,
@@ -245,14 +339,11 @@ public class AnswerProcess implements Closeable {
         RESULT
     }
 
-    private final DNSRequestClient netClient;
 
     private final AtomicInteger nextId = new AtomicInteger(1);
 
     private Resolver resolver;
-    private DNSEngine engine;
     private List<String> dnsRootServers;
-    private DNSCache cache;
     private boolean useIPv4;
     private boolean useIPv6;
 
@@ -279,29 +370,22 @@ public class AnswerProcess implements Closeable {
             DNSCache cache,
             boolean useIPv4,
             boolean useIPv6
-    ) throws DNSException {
+    ) throws DNSException, InterruptedException {
 
         Question question = engine.createQuestion(name, type, DNSClass.IN);
 
         status = Status.START;
-
-        try {
-            this.netClient = new DNSRequestClient();
-        } catch (IOException e) {
-            throw new DNSException(e);
-        }
-
-        result = findInCache(question, cache);
-        if(result != null) {
-            return;
-        }
-
         this.resolver = resolver;
         this.engine = engine;
         this.dnsRootServers = dnsRootServers;
         this.cache = cache;
         this.useIPv4 = useIPv4;
         this.useIPv6 = useIPv6;
+
+        result = findInCache(question, cache);
+        if(result != null) {
+            return;
+        }
 
         this.targetName = question.getDnsName();
 
@@ -326,6 +410,7 @@ public class AnswerProcess implements Closeable {
         this.message = createQueryMessage(question);
     }
 
+    @Deprecated
     public boolean doIO(int timeoutMillis) throws DNSException {
         DNSException exception = null;
         try {
@@ -354,15 +439,15 @@ public class AnswerProcess implements Closeable {
         closeResources();
     }
 
-    private List<ResourceRecord> findInCache(Question question, DNSCache cache) {
-        List<CachedResourceRecord> records = cache.getResourceRecords(question);
+    private List<ResourceRecord> findInCache(Question question, DNSCache cache) throws InterruptedException, DNSException {
+        List<CachedResourceRecord> records = cache.getResourceRecords(question, 0); // TODO set a timeout
         boolean expired = false;
         for(CachedResourceRecord record: records) if(record.isExpired()) { expired = true; break; }
         if(expired || records.size() == 0) return null;
         return records.stream().map(CachedResourceRecord::getResourceRecord).collect(Collectors.toList());
     }
 
-    private Deque<NameServer> getInitialDnsServers(String name) {
+    private Deque<NameServer> getInitialDnsServers(String name) throws InterruptedException, DNSException {
         boolean firstTime = true;
         List<CachedResourceRecord> nsResult;
         List<CachedResourceRecord> ipResult;
@@ -381,13 +466,13 @@ public class AnswerProcess implements Closeable {
                 name = name.substring(dotPos + 1);
             }
 
-            nsResult = cache.getResourceRecords(engine.createQuestion(name, DNSType.NS, DNSClass.IN));
+            nsResult = cache.getResourceRecords(engine.createQuestion(name, DNSType.NS, DNSClass.IN), 0); // TODO set a timeout
             for(CachedResourceRecord ns: nsResult) {
                 if(ns.isExpired()) {
                     cache.removeResourceRecord(ns);
                     continue;
                 }
-                ipResult = cache.getResourceRecords(engine.createQuestion(ns.getDnsName(), DNSType.A, DNSClass.IN));
+                ipResult = cache.getResourceRecords(engine.createQuestion(ns.getDnsName(), DNSType.A, DNSClass.IN), 0); // TODO set a timeout
                 for(CachedResourceRecord ip: ipResult) {
                     if(ip.isExpired()) {
                         cache.removeResourceRecord(ip);

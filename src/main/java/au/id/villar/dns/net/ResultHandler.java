@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * @see DNSRequestClient
  */
 @FunctionalInterface
-public interface ResultListener {
+public interface ResultHandler {
 
     /**
      * Method to be called when a result from a name server is ready. If the operation was successful then

@@ -27,7 +27,7 @@ import java.util.Iterator;
 
 public class DNSRequestClientTest {
 
-    public static void main3(String[] args) throws IOException, DNSException, InterruptedException {
+    public static void main(String[] args) throws IOException, DNSException, InterruptedException {
 
         DNSEngine engine = new DNSEngine();
         Question question = engine.createQuestion("id.au", DNSType.ALL, DNSClass.IN);
@@ -39,13 +39,13 @@ public class DNSRequestClientTest {
                 result.position())));
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main2(String[] args) throws IOException, InterruptedException {
 
         class BooleanHolder { volatile boolean value; }
         BooleanHolder holder = new BooleanHolder();
 
         DNSEngine engine = new DNSEngine();
-        Question question = engine.createQuestion("villar.id.au", DNSType.ALL, DNSClass.IN);
+        Question question = engine.createQuestion("id.au", DNSType.ALL, DNSClass.IN);
         // DNSMessage message = engine.createSimpleQueryMessage((short)15, question);
         DNSMessage message = engine.createMessage((short)15, false, Opcode.QUERY, false, false, true, false,
                 (byte)0, ResponseCode.NO_ERROR, new Question[] {question}, new ResourceRecord[0], new ResourceRecord[0],
@@ -62,13 +62,11 @@ public class DNSRequestClientTest {
 
             while (!holder.value) {
                 System.out.println("waiting...");
-                Thread.sleep(100);
-                if(selector.select() == 0) System.out.println("...");
+                selector.select();
                 Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
                 while(iterator.hasNext()) {
-                    System.out.println("iterating...");
-                    SelectionKey key = iterator.next();
-                    if(client.processAttachement(key)) iterator.remove();
+                    DNSRequestClient.processAttachment(iterator.next());
+                    iterator.remove();
                 }
             }
         }

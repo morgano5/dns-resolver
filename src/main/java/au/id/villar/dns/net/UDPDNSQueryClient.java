@@ -24,14 +24,13 @@ import java.nio.channels.*;
 
 class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
-    private static final int UDP_CLIENT_OPS = SelectionKey.OP_READ | SelectionKey.OP_WRITE;
     private static final int UDP_RETRY_MILLISECONDS = 5000;
 
     private long udpTimestamp;
     private ByteBuffer buffer;
 
     @Override
-    protected boolean internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
+    protected int internalDoIO(Selector selector, String address, int port) throws IOException, DNSException {
 
         DatagramChannel udpChannel = (DatagramChannel)channel;
 
@@ -49,16 +48,16 @@ class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
                 ((WritableByteChannel)channel).write(query);
                 if(query.remaining() > 0) {
-                    registerAndAttach(selector, UDP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_WRITE);
                     status = Status.SENDING;
-                    return false;
+                    return SelectionKey.OP_WRITE;
                 }
                 buffer = ByteBuffer.allocate(UDP_DATAGRAM_MAX_SIZE);
 
             case RECEIVING:
 
                 if(udpChannel.receive(buffer) == null) {
-                    registerAndAttach(selector, UDP_CLIENT_OPS);
+                    registerAndAttach(selector, SelectionKey.OP_READ);
                     if(System.currentTimeMillis() - udpTimestamp > UDP_RETRY_MILLISECONDS) {
                         udpTimestamp = System.currentTimeMillis();
                         query.position(2);
@@ -66,9 +65,10 @@ class UDPDNSQueryClient extends AbstractDNSQueryClient {
                     } else {
                         status = Status.RECEIVING;
                     }
-                    return false;
+                    return SelectionKey.OP_READ;
                 }
                 udpChannel.close();
+                channel = null;
                 buffer.flip();
                 result = buffer;
                 status = Status.RESULT;
@@ -76,7 +76,7 @@ class UDPDNSQueryClient extends AbstractDNSQueryClient {
 
         }
 
-        return true;
+        return NO_OP;
     }
 
 }
