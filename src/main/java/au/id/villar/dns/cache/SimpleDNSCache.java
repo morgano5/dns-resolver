@@ -33,7 +33,7 @@ public class SimpleDNSCache implements DNSCache {
     @Override
     public void addResourceRecord(ResourceRecord resourceRecord) {
         int position = Collections.binarySearch(cachedRecords, resourceRecord, this::compareRecordsForAdding);
-        CachedResourceRecord wrapper = new CachedResourceRecord(resourceRecord);
+        CachedResourceRecord wrapper = new CachedResourceRecord(resourceRecord, System.currentTimeMillis());
         if(position < 0) {
             cachedRecords.add(-position - 1, wrapper);
             if(cachedRecords.size() > numEntries) cachedRecords.remove(numEntries - 1);
@@ -43,21 +43,20 @@ public class SimpleDNSCache implements DNSCache {
     }
 
     @Override
-    public List<CachedResourceRecord> getResourceRecords(Question question, long timeout) {
+    public List<ResourceRecord> getResourceRecords(Question question, long timeout) {
         int position = Collections.binarySearch(cachedRecords, question, this::compareRecordsForSearching);
         while(position >= 0 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) position--;
-        List<CachedResourceRecord> list = new ArrayList<>();
+        List<ResourceRecord> list = new ArrayList<>();
         if(position >= 0) while(++position < cachedRecords.size()
                 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) {
-            list.add(cachedRecords.get(position));
+            list.add(cachedRecords.get(position).getResourceRecord());
         }
         return list;
     }
 
     @Override
-    public void removeResourceRecord(DNSItem resourceRecord) {
-        int position = Collections.binarySearch(cachedRecords, resourceRecord, this::compareRecordsForAdding);
-        if(position >= 0) cachedRecords.remove(position);
+    public void clear() {
+        cachedRecords.clear();
     }
 
     @Override

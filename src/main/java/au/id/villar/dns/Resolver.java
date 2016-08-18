@@ -15,7 +15,6 @@
  */
 package au.id.villar.dns;
 
-import au.id.villar.dns.cache.CachedResourceRecord;
 import au.id.villar.dns.cache.DNSCache;
 import au.id.villar.dns.cache.ResourceRecordHandler;
 import au.id.villar.dns.engine.*;
@@ -99,12 +98,12 @@ public class Resolver {
             }
 
             @Override
-            public List<CachedResourceRecord> getResourceRecords(Question question, long timeout) {
+            public List<ResourceRecord> getResourceRecords(Question question, long timeout) {
                 return Collections.emptyList();
             }
 
             @Override
-            public void removeResourceRecord(DNSItem resourceRecord) {
+            public void clear() {
             }
 
             @Override

@@ -20,14 +20,16 @@ import au.id.villar.dns.engine.DNSItem;
 import au.id.villar.dns.engine.DNSType;
 import au.id.villar.dns.engine.ResourceRecord;
 
-public class CachedResourceRecord implements DNSItem {
+class CachedResourceRecord implements DNSItem {
 
     private final ResourceRecord wrapped;
     private final long bestBefore;
+    private final long timeAdded;
 
-    public CachedResourceRecord(ResourceRecord wrapped) {
+    public CachedResourceRecord(ResourceRecord wrapped, long timeAdded) {
         this.wrapped = wrapped;
-        this.bestBefore = wrapped.getSecondsCache() * 1000L + System.currentTimeMillis();
+        this.timeAdded = timeAdded;
+        this.bestBefore = wrapped.getSecondsCache() * 1000L + this.timeAdded;
     }
 
     public <T> T getData(Class<T> tClass) {
@@ -51,6 +53,10 @@ public class CachedResourceRecord implements DNSItem {
 
     public boolean isExpired() {
         return bestBefore - System.currentTimeMillis() < 0;
+    }
+
+    public long getTimeAdded() {
+        return timeAdded;
     }
 
     public ResourceRecord getResourceRecord() {

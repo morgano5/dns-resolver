@@ -16,10 +16,12 @@
 
 package au.id.villar.dns.cache;
 
+import au.id.villar.dns.engine.ResourceRecord;
+
 import java.util.List;
 
 public interface ResourceRecordHandler {
 
-    void handleResourceRecord(List<CachedResourceRecord> resourceRecords, Exception exception);
+    void handleResourceRecord(List<ResourceRecord> resourceRecords, Exception exception);
 
 }
