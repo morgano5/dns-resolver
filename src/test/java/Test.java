@@ -16,6 +16,8 @@
 import au.id.villar.dns.AnswerProcess;
 import au.id.villar.dns.DNSException;
 import au.id.villar.dns.Resolver;
+import au.id.villar.dns.TestUtils;
+import au.id.villar.dns.cache.DNSCache;
 import au.id.villar.dns.cache.SimpleDNSCache;
 import au.id.villar.dns.engine.*;
 
@@ -43,10 +45,16 @@ public class Test {
                     "202.12.27.33"
         );
 
-        AnswerProcess process = new AnswerProcess(new DNSEngine(), new SimpleDNSCache(), rootServers);
-        List<DNSItem> response = process.lookUp("villar.me", DNSType.A, 100_000);
+        DNSEngine engine = new DNSEngine();
+        DNSCache cache = new SimpleDNSCache();
+        for(String root: rootServers) cache.addResourceRecord(engine.createResourceRecord("", DNSType.A, DNSClass.IN, 0, root));
 
-        System.out.println(response);
+        AnswerProcess process = new AnswerProcess(engine, cache);
+        List<ResourceRecord> response = process.lookUp("villar.me", DNSType.A, 100_000);
+
+        for(ResourceRecord record: response) {
+            System.out.println(TestUtils.resourceRecordToString(record));
+        }
         //        Resolver resolver = Resolver
 //                .withCache(new SimpleDNSCache())//.usingIPv4(true).usingIPv6(false)
 //                .withRootServers(Arrays.asList(

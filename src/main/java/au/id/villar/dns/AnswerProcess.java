@@ -242,7 +242,7 @@ public class AnswerProcess implements Closeable {
 
     private interface SearchingTask {
 
-        List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
+        List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
                 throws DNSException, InterruptedException;
 
     }
@@ -251,39 +251,39 @@ public class AnswerProcess implements Closeable {
     private final DNSEngine engine;
     private final DNSRequestClient netClient = new DNSRequestClient();
     private DNSCache cache;
-    private List<String> dnsRootServers;
     private Deque<SearchingTask> pendingTasks = new LinkedList<>();
 
-    public AnswerProcess(DNSEngine engine, DNSCache cache, List<String> dnsRootServers) {
+    public AnswerProcess(DNSEngine engine, DNSCache cache) {
         this.engine = engine;
         this.cache = cache;
-        this.dnsRootServers = dnsRootServers;
     }
 
-    public List<DNSItem> lookUp(String name, DNSType type, long timeout) throws DNSException, InterruptedException {
-        pendingTasks.offerFirst(new StartSearch(name, type));
+    public List<ResourceRecord> lookUp(String name, DNSType type, long timeout)
+            throws DNSException, InterruptedException {
 
+        long timeLimit = System.currentTimeMillis() + timeout;
+
+        pendingTasks.offerFirst(new StartSearch(name, type));
         SearchingTask task;
-        List<? extends DNSItem> lastResult = null;
+        List<ResourceRecord> lastResult = null;
         while((task = pendingTasks.pollFirst()) != null) {
+            timeout = timeLimit - System.currentTimeMillis();
             lastResult = task.tryToGetRRs(lastResult, timeout);
         }
-        return lastResult != null?
-                lastResult.stream().map(r -> (DNSItem)r).collect(Collectors.toList()):
-                Collections.emptyList();
+        return lastResult != null? lastResult: Collections.emptyList();
     }
 
     private class StartSearch implements SearchingTask {
 
         private Question question;
-        private Deque<DNSItem> sources = new LinkedList<>();
+        private Deque<ResourceRecord> sources = new LinkedList<>();
 
         public StartSearch(String name, DNSType type) {
             this.question = engine.createQuestion(name, type, DNSClass.IN);
         }
 
         @Override
-        public List<ResourceRecord> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
+        public List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
                 throws DNSException, InterruptedException {
 
             if(neededRRs == null) {
@@ -297,30 +297,35 @@ public class AnswerProcess implements Closeable {
                 }
             }
 
-            neededRRs.forEach(sources::offerLast);
-            DNSItem source;
-            while((source = sources.pollLast()) != null) {
+            neededRRs.forEach(sources::offerFirst);
+            ResourceRecord source;
+            while((source = sources.pollFirst()) != null) {
 
-                String nameServerAddress = null;
                 if (source.getDnsType().equals(DNSType.NS)) {
-                    if(!source.getDnsName().equals(".")) {
-                        pendingTasks.offerFirst(this);
-                        pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
-                        return Collections.emptyList();
-                    }
-                    nameServerAddress = dnsRootServers.get(0); // TODO get a random
+                    pendingTasks.offerFirst(this);
+                    pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
+                    return Collections.emptyList();
                 } else if (source.getDnsType().equals(DNSType.A)) {
-                    nameServerAddress = source.getDnsName(); // no mames, ya vete a dormir
+
+                    // TODO ok, we have the IP of a name serve, now we need to start reading authorities and additionals as well
+
+
+
+                    // TODO temporary code
+//                    ByteBuffer result = netClient.query(
+//                            createQueryMessage(question), source.getData(String.class), timeout);
+//                    DNSMessage message = engine.createMessageFromBuffer(result.array(), result.position());
+//                    List<ResourceRecord> rrs = new ArrayList<>();
+//                    for(int c = 0; c < message.getNumAnswers(); c++) rrs.add(message.getAnswer(c));
+//                    for(int c = 0; c < message.getNumAuthorities(); c++) rrs.add(message.getAuthority(c));
+//                    for(int c = 0; c < message.getNumAdditionals(); c++) rrs.add(message.getAdditional(c));
+//                    return rrs;
+                    return Collections.singletonList(source);
+
+
                 } else {
                     continue;
                 }
-
-                ByteBuffer result = netClient.query(createQueryMessage(question), source.getDnsName(), timeout);
-
-                DNSMessage message = engine.createMessageFromBuffer(result.array(), result.position());
-                List<ResourceRecord> rrs = new ArrayList<>();
-                for(int c = 0; c < message.getNumAnswers(); c++) rrs.add(message.getAnswer(c));
-                return rrs;
             }
 
             return Collections.emptyList();
@@ -336,21 +341,19 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public List<? extends DNSItem> tryToGetRRs(List<? extends DNSItem> neededRRs, long timeout)
+        public List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
                 throws DNSException, InterruptedException {
-            while(!name.equals("")) {
-                Question question = engine.createQuestion(name, DNSType.A, DNSClass.IN);
+            while(name != null) {
+                Question question = engine.createQuestion(name, DNSType.NS, DNSClass.IN);
                 List<CachedResourceRecord> result = cache.getResourceRecords(question, timeout);
-                if (result.size() > 0) return result;
+                if (result.size() > 0) {
+                    return result.stream().map(CachedResourceRecord::getResourceRecord).collect(Collectors.toList());
+                }
                 int dotPos;
-                if((dotPos = name.indexOf('.')) != -1) name = name.substring(dotPos + 1); else break;
+                name = "".equals(name)? null: ((dotPos = name.indexOf('.')) != -1)? name.substring(dotPos + 1): "";
             }
 
-            return Collections.singletonList(new DNSItem() {
-                @Override public String getDnsName() { return "."; }
-                @Override public DNSType getDnsType() { return DNSType.NS; }
-                @Override public DNSClass getDnsClass() { return DNSClass.IN; }
-            });
+            return Collections.emptyList();
         }
     }
 
@@ -449,7 +452,7 @@ public class AnswerProcess implements Closeable {
         status = Status.START;
         this.resolver = resolver;
         this.engine = engine;
-        this.dnsRootServers = dnsRootServers;
+//        this.dnsRootServers = dnsRootServers;
         this.cache = cache;
         this.useIPv4 = useIPv4;
         this.useIPv6 = useIPv6;
@@ -524,9 +527,10 @@ public class AnswerProcess implements Closeable {
         List<CachedResourceRecord> nsResult;
         List<CachedResourceRecord> ipResult;
         Deque<NameServer> result =
-                dnsRootServers.stream()
-                        .map(root -> new NameServer("[ROOT]", root))
-                        .collect(Collectors.toCollection(LinkedList::new));
+//                dnsRootServers.stream()
+//                        .map(root -> new NameServer("[ROOT]", root))
+//                        .collect(Collectors.toCollection(LinkedList::new));
+        new LinkedList<>();
 
         while(!name.isEmpty()) {
 

@@ -157,7 +157,7 @@ public class Utils {
     }
 
     public static boolean isValidDnsName(String name) {
-        return name.length() <= 253 && DNS_NAME_PATTERN.matcher(name).matches();
+        return name.length() == 0 || name.length() <= 253 && DNS_NAME_PATTERN.matcher(name).matches();
     }
 
     public static boolean isValidIPv4(String ip) {

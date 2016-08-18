@@ -82,9 +82,9 @@ public class AValueConverter implements RRValueConverter {
         for(int index = 0; index < 4; index++) {
             int octectValue = 0;
             char ch;
-            while(pos < str.length() && (ch = str.charAt(pos)) != '.')
+            while(pos < str.length() && (ch = str.charAt(pos++)) != '.')
                 octectValue = octectValue * 10 + (ch - '0');
-            value[pos] = (byte)octectValue;
+            value[index] = (byte)octectValue;
         }
         return value;
 
