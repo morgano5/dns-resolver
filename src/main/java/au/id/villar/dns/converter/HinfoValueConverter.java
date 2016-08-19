@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import au.id.villar.dns.engine.Utils;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type HINFO (Host Information)
+ */
 public class HinfoValueConverter implements RRValueConverter {
 
     @Override
@@ -46,6 +49,8 @@ public class HinfoValueConverter implements RRValueConverter {
 
     @Override
     public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(rawObject.toString());
         if(tClass != HinfoData.class && tClass != Object.class)
             throw new IllegalArgumentException("Only " + HinfoData.class.getName() + " is supported");
         return tClass.cast(rawObject);
@@ -61,6 +66,10 @@ public class HinfoValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    /**
+     * Holds data related to a HINFO (Host info) Resource Record
+     */
+    @SuppressWarnings("WeakerAccess")
     public static final class HinfoData {
 
         private final String cpu;
@@ -71,10 +80,18 @@ public class HinfoValueConverter implements RRValueConverter {
             this.operatingSystem = operatingSystem;
         }
 
+        /**
+         * Host's CPU Type.
+         * @return the Host's CPU Type.
+         */
         public String getCpu() {
             return cpu;
         }
 
+        /**
+         * Operating system running in the host.
+         * @return Operating system running in the host.
+         */
         public String getOperatingSystem() {
             return operatingSystem;
         }

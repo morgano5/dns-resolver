@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ import au.id.villar.dns.engine.RRValueConverter;
 import java.util.Arrays;
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type WKS (well known service)
+ */
 public class WksValueConverter implements RRValueConverter {
 
     @Override
@@ -42,21 +45,25 @@ public class WksValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value,Class<T> tClass) {
+    public <T> T convertValue(Object rawObject,Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(rawObject.toString());
         if(tClass != WksData.class && tClass != Object.class)
             throw new IllegalArgumentException("Only " + WksData.class.getName() + " is supported");
-        return tClass.cast(value);
+        return tClass.cast(rawObject);
     }
 
     @Override
-    public int writeRawData(Object objValue, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
-        WksData value = (WksData)objValue;
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        WksData value = (WksData)rawObject;
         System.arraycopy(value.getIpv4(), 0, array, offset, 4);
         array[offset + 4] = (byte)value.getProtocol();
         System.arraycopy(value.getBitmap(), 0, array, offset + 5, value.getBitmap().length);
         return value.getBitmap().length + 5;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static final class WksData {
 
         private final byte[] ipv4;

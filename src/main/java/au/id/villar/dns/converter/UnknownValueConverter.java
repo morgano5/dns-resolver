@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,9 @@ import au.id.villar.dns.engine.RRValueConverter;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of unknown type
+ */
 public class UnknownValueConverter implements RRValueConverter {
 
     @Override
@@ -38,17 +41,31 @@ public class UnknownValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value, Class<T> tClass) {
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(byteToString((byte[])rawObject));
         if(tClass != byte[].class && tClass != Object.class)
             throw new IllegalArgumentException("Only byte[] is allowed");
-        return tClass.cast(((byte[])value).clone());
+        return tClass.cast(((byte[])rawObject).clone());
     }
 
     @Override
-    public int writeRawData(Object value, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
-        byte[] arrayValue = (byte[])value;
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        byte[] arrayValue = (byte[])rawObject;
         System.arraycopy(arrayValue, 0, array, offset, arrayValue.length);
         return arrayValue.length;
     }
 
+    private String byteToString(byte[] bytes) {
+        StringBuilder buffer = new StringBuilder(bytes.length);
+        for(byte b: bytes) {
+            if(b > 31 && b < 127) {
+                buffer.append('\'').append((char)b).append('\'');
+            } else {
+                buffer.append('[').append(b & 0xFF).append(']');
+            }
+        }
+        return buffer.toString();
+    }
 }

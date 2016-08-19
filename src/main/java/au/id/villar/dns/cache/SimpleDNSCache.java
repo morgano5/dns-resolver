@@ -24,6 +24,13 @@ import java.util.Collections;
 import java.util.List;
 
 // TODO do cleaning up periodically
+/////*
+////AXFR            252 A request for a transfer of an entire zone
+////MAILB           253 A request for mailbox-related records (MB, MG or MR)
+////MAILA           254 A request for mail agent RRs (Obsolete - see MX)
+////*               255 A request for all records
+////*/
+////            // TODO support queries returning more than one resource record type
 public class SimpleDNSCache implements DNSCache {
 
 

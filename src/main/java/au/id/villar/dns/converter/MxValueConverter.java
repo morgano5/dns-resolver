@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import au.id.villar.dns.engine.Utils;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type MX (mail exchange)
+ */
 public class MxValueConverter implements RRValueConverter {
 
     @Override
@@ -44,17 +47,20 @@ public class MxValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value, Class<T> tClass) {
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(rawObject.toString());
         if(tClass != MxData.class && tClass != Object.class)
             throw new IllegalArgumentException("Only " + MxData.class.getName() + " is supported");
-        return tClass.cast(value);
+        return tClass.cast(rawObject);
     }
 
     @Override
-    public int writeRawData(Object objValue, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
         int start = offset;
         int usedBytes;
-        MxData value = (MxData)objValue;
+        MxData value = (MxData)rawObject;
 
         Utils.writeShort((short)value.getPreference(), array, offset);
         offset += 2;
@@ -64,6 +70,10 @@ public class MxValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    /**
+     * Holds data related to a MX (Mailbox exchange) Resource Record
+     */
+    @SuppressWarnings("WeakerAccess")
     public static final class MxData {
 
         private final int preference;
@@ -74,10 +84,19 @@ public class MxValueConverter implements RRValueConverter {
             this.mailServer = mailServer;
         }
 
+        /**
+         * Gets a number specifying the preference given to this RR among others at the same owner. Lower values are
+         * preferred.
+         * @return A number specifying the preference given to this RR among others at the same owner.
+         */
         public int getPreference() {
             return preference;
         }
 
+        /**
+         * The name server that handles the email for this name.
+         * @return The name server that handles the email for this name.
+         */
         public String getMailServer() {
             return mailServer;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Converter for ResourceRecords of type AAAA (IPv6 address)
+ */
 public class AAAAValueConverter implements RRValueConverter {
 
     private static final Pattern IPv6_GROUP = Pattern.compile("[A-Fa-f0-9]++");

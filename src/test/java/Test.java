@@ -51,7 +51,7 @@ public class Test {
         cache.addResourceRecord(engine.createResourceRecord("", DNSType.NS, DNSClass.IN, 0, ""));
 
         AnswerProcess process = new AnswerProcess(engine, cache);
-        List<ResourceRecord> response = process.lookUp("villar.me", DNSType.A, 100_000);
+        List<ResourceRecord> response = process.lookUp("mail.villar.id.au", DNSType.ALL, 10_000_000);
 
         for(ResourceRecord record: response) {
             System.out.println(TestUtils.resourceRecordToString(record));

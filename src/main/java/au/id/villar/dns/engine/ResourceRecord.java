@@ -55,6 +55,17 @@ public final class ResourceRecord implements DNSItem {
         return converter.convertValue(data, tClass);
     }
 
+    @Override
+    public String toString() {
+        return "RR{" +
+                "name='" + dnsName + '\'' +
+                ", type=" + dnsType +
+                ", class=" + dnsClass +
+                ", ttl=" + ttl +
+                ", value=" + converter.convertValue(data, String.class) +
+                '}';
+    }
+
     int writeRawData(byte[] buffer, int offset, int linkOffset, Map<String, Integer> nameLinks) {
 
         int start = offset;

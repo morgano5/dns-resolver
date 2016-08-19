@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import au.id.villar.dns.engine.Utils;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type MINFO (Mailbox info)
+ */
 public class MinfoValueConverter implements RRValueConverter {
 
     @Override
@@ -45,17 +48,20 @@ public class MinfoValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value, Class<T> tClass) {
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(rawObject.toString());
         if(tClass != MinfoData.class && tClass != Object.class)
             throw new IllegalArgumentException("Only " + MinfoData.class.getName() + " is supported");
-        return tClass.cast(value);
+        return tClass.cast(rawObject);
     }
 
     @Override
-    public int writeRawData(Object objValue, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
         int start = offset;
         int usedBytes;
-        MinfoData value = (MinfoData)objValue;
+        MinfoData value = (MinfoData)rawObject;
 
         usedBytes = Utils.writeDomainNameAndUpdateLinks(value.getAdminMaibox(), array, offset, linkOffset, nameLinks);
         offset += usedBytes;
@@ -64,6 +70,10 @@ public class MinfoValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    /**
+     * Holds data related to a MINFO (Mailbox info) Resource Record
+     */
+    @SuppressWarnings("WeakerAccess")
     public static final class MinfoData {
 
         private final String adminMaibox;
@@ -74,10 +84,20 @@ public class MinfoValueConverter implements RRValueConverter {
             this.errorMailbox = errorMailbox;
         }
 
+        /**
+         * A domain name which specifies a mailbox which is responsible for the mailing list or mailbox
+         * @return A domain name which specifies a mailbox which is responsible for the mailing list or mailbox
+         */
         public String getAdminMaibox() {
             return adminMaibox;
         }
 
+        /**
+         * A domain name which specifies a mailbox which is to receive error messages related to the mailing list or
+         * mailbox specified by the owner of the MINFO resource record.
+         * @return A domain name which specifies a mailbox which is to receive error messages related to the mailing
+         * list or mailbox specified by the owner of the MINFO resource record.
+         */
         public String getErrorMailbox() {
             return errorMailbox;
         }

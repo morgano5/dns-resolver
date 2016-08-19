@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import au.id.villar.dns.engine.Utils;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type SOA (Start of authority)
+ */
 public class SoaValueConverter implements RRValueConverter {
 
     @Override
@@ -60,16 +63,18 @@ public class SoaValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object objValue, Class<T> tClass) {
-        SoaData value = (SoaData)objValue;
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        if(tClass == String.class)
+            return tClass.cast(rawObject.toString());
         if(tClass != SoaData.class && tClass != Object.class)
             throw new IllegalArgumentException("Only " + SoaData.class.getName() + " is supported");
-        return tClass.cast(value);
+        return tClass.cast(rawObject);
     }
 
     @Override
-    public int writeRawData(Object objValue, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
-        SoaData value = (SoaData)objValue;
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        SoaData value = (SoaData)rawObject;
         int start = offset;
         int usedBytes;
 
@@ -90,6 +95,10 @@ public class SoaValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    /**
+     * Holds data related to a SOA (tart of authority) Resource Record
+     */
+    @SuppressWarnings("WeakerAccess")
     public static final class SoaData {
 
         private final String domainName;

@@ -76,4 +76,13 @@ public final class Question implements DNSItem {
         result = 31 * result + dnsClass.hashCode();
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "Question{" +
+                "name='" + dnsName + '\'' +
+                ", type=" + dnsType +
+                ", class=" + dnsClass +
+                '}';
+    }
 }

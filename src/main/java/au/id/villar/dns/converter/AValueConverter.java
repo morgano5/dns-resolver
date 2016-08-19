@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type A (IPv4 address)
+ */
 public class AValueConverter implements RRValueConverter {
 
     @Override
@@ -42,8 +45,8 @@ public class AValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value, Class<T> tClass) {
-        byte[] arrayValue = (byte[])value;
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
+        byte[] arrayValue = (byte[])rawObject;
         Object result = null;
         if(tClass == String.class || tClass == Object.class) {
             int ip = Utils.getInt(arrayValue, 0, 4);
@@ -66,8 +69,9 @@ public class AValueConverter implements RRValueConverter {
     }
 
     @Override
-    public int writeRawData(Object value, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
-        byte[] arrayValue = (byte[])value;
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        byte[] arrayValue = (byte[])rawObject;
         System.arraycopy(arrayValue, 0, array, offset, 4);
         return 4;
     }

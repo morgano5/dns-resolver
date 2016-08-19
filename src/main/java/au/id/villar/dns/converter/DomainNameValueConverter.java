@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rafael Villar Villar
+ * Copyright 2015-2016 Rafael Villar Villar
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import au.id.villar.dns.engine.Utils;
 
 import java.util.Map;
 
+/**
+ * Converter for ResourceRecords of type NS (Name server), CNAME (canonical name), MD, MF, MB, MG, MR and PTR
+ */
 public class DomainNameValueConverter implements RRValueConverter {
 
     @Override
@@ -38,15 +41,16 @@ public class DomainNameValueConverter implements RRValueConverter {
     }
 
     @Override
-    public <T> T convertValue(Object value, Class<T> tClass) {
+    public <T> T convertValue(Object rawObject, Class<T> tClass) {
         if(tClass != String.class && tClass != Object.class)
             throw new IllegalArgumentException("only String conversions are possible");
-        return tClass.cast(value);
+        return tClass.cast(rawObject);
     }
 
     @Override
-    public int writeRawData(Object value, byte[] array, int offset, int linkOffset, Map<String, Integer> nameLinks) {
-        return Utils.writeDomainNameAndUpdateLinks(value.toString(), array, offset, linkOffset, nameLinks);
+    public int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
+            Map<String, Integer> nameLinks) {
+        return Utils.writeDomainNameAndUpdateLinks(rawObject.toString(), array, offset, linkOffset, nameLinks);
     }
 
 }
