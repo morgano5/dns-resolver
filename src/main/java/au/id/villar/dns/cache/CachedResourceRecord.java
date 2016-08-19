@@ -25,10 +25,12 @@ class CachedResourceRecord implements DNSItem {
     private final ResourceRecord wrapped;
     private final long bestBefore;
     private final long timeAdded;
+    private long timeAccessed;
 
     public CachedResourceRecord(ResourceRecord wrapped, long timeAdded) {
         this.wrapped = wrapped;
         this.timeAdded = timeAdded;
+        this.timeAccessed = timeAdded;
         this.bestBefore = wrapped.getSecondsCache() * 1000L + this.timeAdded;
     }
 
@@ -57,6 +59,14 @@ class CachedResourceRecord implements DNSItem {
 
     public long getTimeAdded() {
         return timeAdded;
+    }
+
+    public long getTimeAccessed() {
+        return timeAccessed;
+    }
+
+    public void setTimeAccessed(long timeAccessed) {
+        this.timeAccessed = timeAccessed;
     }
 
     public ResourceRecord getResourceRecord() {

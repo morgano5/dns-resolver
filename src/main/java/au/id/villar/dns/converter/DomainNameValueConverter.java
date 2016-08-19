@@ -27,7 +27,7 @@ public class DomainNameValueConverter implements RRValueConverter {
     public Object convertToRawData(Object data) {
         if(!(data instanceof String)) throw new IllegalArgumentException("Only String can be converted");
         String str = data.toString();
-        if(!Utils.isValidDnsName(str)) throw new IllegalArgumentException("Not a valid domain name");
+        if(!Utils.isValidDnsName(str)) throw new IllegalArgumentException("Not a valid domain name: " + str);
         return str;
     }
 

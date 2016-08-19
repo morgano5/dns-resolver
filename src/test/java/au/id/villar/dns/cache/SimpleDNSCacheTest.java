@@ -20,6 +20,7 @@ import au.id.villar.dns.DNSException;
 import au.id.villar.dns.engine.DNSClass;
 import au.id.villar.dns.engine.DNSEngine;
 import au.id.villar.dns.engine.DNSType;
+import au.id.villar.dns.engine.ResourceRecord;
 import org.junit.Test;
 
 import java.util.List;
@@ -30,8 +31,8 @@ public class SimpleDNSCacheTest {
 
     @Test
     public void addAndGetRRs() throws InterruptedException, DNSException {
-        List<CachedResourceRecord> records;
-        DNSCache cache = new SimpleDNSCache();
+        List<ResourceRecord> records;
+        DNSCache cache = new SimpleDNSCache(1000);
         DNSEngine engine = new DNSEngine();
         cache.addResourceRecord(engine.createResourceRecord("test", DNSType.A, DNSClass.IN, 100000, "192.168.0.1"));
         cache.addResourceRecord(engine.createResourceRecord("another", DNSType.A, DNSClass.IN, 100000, "192.168.0.10"));
@@ -58,8 +59,8 @@ public class SimpleDNSCacheTest {
         records = cache.getResourceRecords(engine.createQuestion("another", DNSType.A, DNSClass.IN), 100_000L);
         assertNotNull("records shouldn't be null", records);
         assertEquals(2, records.size());
-        assertEquals("192.168.0.10", records.get(0).getData(String.class));
-        assertEquals("192.168.0.20", records.get(1).getData(String.class));
+        assertEquals("192.168.0.10", records.get(1).getData(String.class));
+        assertEquals("192.168.0.20", records.get(0).getData(String.class));
     }
 
 }

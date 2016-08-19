@@ -46,8 +46,9 @@ public class Test {
         );
 
         DNSEngine engine = new DNSEngine();
-        DNSCache cache = new SimpleDNSCache();
+        DNSCache cache = new SimpleDNSCache(1000);
         for(String root: rootServers) cache.addResourceRecord(engine.createResourceRecord("", DNSType.A, DNSClass.IN, 0, root));
+        cache.addResourceRecord(engine.createResourceRecord("", DNSType.NS, DNSClass.IN, 0, ""));
 
         AnswerProcess process = new AnswerProcess(engine, cache);
         List<ResourceRecord> response = process.lookUp("villar.me", DNSType.A, 100_000);

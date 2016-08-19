@@ -23,31 +23,37 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+// TODO do cleaning up periodically
 public class SimpleDNSCache implements DNSCache {
 
 
-    private int numEntries = 1000; // todo customize
+    private int numEntries;
 
     private List<CachedResourceRecord> cachedRecords = new ArrayList<>(numEntries);
 
+    public SimpleDNSCache(int numEntries) {
+        this.numEntries = numEntries;
+    }
+
     @Override
     public void addResourceRecord(ResourceRecord resourceRecord) {
-        int position = Collections.binarySearch(cachedRecords, resourceRecord, this::compareRecordsForAdding);
         CachedResourceRecord wrapper = new CachedResourceRecord(resourceRecord, System.currentTimeMillis());
+        int position = Collections.binarySearch(cachedRecords, wrapper, this::compareRecordsForAdding);
         if(position < 0) {
             cachedRecords.add(-position - 1, wrapper);
             if(cachedRecords.size() > numEntries) cachedRecords.remove(numEntries - 1);
         } else {
-            cachedRecords.set(position, wrapper);
+            cachedRecords.add(position, wrapper);
         }
     }
 
     @Override
     public List<ResourceRecord> getResourceRecords(Question question, long timeout) {
-        int position = Collections.binarySearch(cachedRecords, question, this::compareRecordsForSearching);
-        while(position >= 0 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) position--;
         List<ResourceRecord> list = new ArrayList<>();
-        if(position >= 0) while(++position < cachedRecords.size()
+        int position = Collections.binarySearch(cachedRecords, question, this::compareRecordsForSearching);
+        if(position < 0) return list;
+        while(position >= 0 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) position--;
+        while(++position < cachedRecords.size()
                 && compareRecordsForSearching(cachedRecords.get(position), question) == 0) {
             list.add(cachedRecords.get(position).getResourceRecord());
         }
@@ -69,14 +75,18 @@ public class SimpleDNSCache implements DNSCache {
     public void processAttachment(SelectionKey selectionKey) {
     }
 
-    private int compareRecordsForAdding(DNSItem item1, DNSItem item2) {
-        int comp;
+    private int compareRecordsForAdding(CachedResourceRecord item1, CachedResourceRecord item2) {
+        long comp;
         if((comp = item1.getDnsName().compareTo(item2.getDnsName())) != 0)
-            return comp;
+            return comp > 0? 1: comp < 0? -1: 0;
         if((comp = item1.getDnsClass().getMnemonic().compareTo(item2.getDnsClass().getMnemonic())) != 0)
-            return comp;
+            return comp > 0? 1: comp < 0? -1: 0;
         if((comp = item1.getDnsType().getMnemonic().compareTo(item2.getDnsType().getMnemonic())) != 0)
-            return comp;
+            return comp > 0? 1: comp < 0? -1: 0;
+        if((comp = item1.getTimeAdded() - item2.getTimeAdded()) != 0)
+            return comp > 0? 1: comp < 0? -1: 0;
+        if((comp = item1.getTimeAccessed() - item2.getTimeAccessed()) != 0)
+            return comp > 0? 1: comp < 0? -1: 0;
         return 0;
     }
 

@@ -238,9 +238,24 @@ is the answer itself.
 @Deprecated // This class is doing thing the wrong way and needs some serious refactoring
 public class AnswerProcess implements Closeable {
 
+    private class TaskMessage {
+        private List<ResourceRecord> result;
+        private long timeLimit;
+        private int flags;
+
+        TaskMessage(long timeout) {
+            this.timeLimit = System.currentTimeMillis() + timeout;
+            this.result = Collections.emptyList();
+        }
+
+        long calculateTimeout() {
+            return timeLimit - System.currentTimeMillis();
+        }
+    }
+
     private interface SearchingTask {
 
-        List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
+        TaskMessage tryToGetRRs(TaskMessage taskMessage)
                 throws DNSException, InterruptedException;
 
     }
@@ -259,75 +274,16 @@ public class AnswerProcess implements Closeable {
     public List<ResourceRecord> lookUp(String name, DNSType type, long timeout)
             throws DNSException, InterruptedException {
 
-        long timeLimit = System.currentTimeMillis() + timeout;
 
         pendingTasks.offerFirst(new StartSearch(name, type));
         SearchingTask task;
-        List<ResourceRecord> lastResult = null;
+        TaskMessage lastResult = new TaskMessage(timeout);
         while((task = pendingTasks.pollFirst()) != null) {
-            timeout = timeLimit - System.currentTimeMillis();
-            lastResult = task.tryToGetRRs(lastResult, timeout);
+            // TODO to decide what should happen on timeout
+            // TODO verify no recursive queries are happening
+            lastResult = task.tryToGetRRs(lastResult);
         }
-        return lastResult != null? lastResult: Collections.emptyList();
-    }
-
-    private class StartSearch implements SearchingTask {
-
-        private Question question;
-        private Deque<ResourceRecord> sources = new LinkedList<>();
-
-        public StartSearch(String name, DNSType type) {
-            this.question = engine.createQuestion(name, type, DNSClass.IN);
-        }
-
-        @Override
-        public List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
-                throws DNSException, InterruptedException {
-
-            if(neededRRs == null) {
-                List<ResourceRecord> result = cache.getResourceRecords(question, timeout);
-                if(result.size() > 0) {
-                    return result;
-                } else {
-                    pendingTasks.offerFirst(this);
-                    pendingTasks.offerFirst(new NameServerSearch(question.getDnsName()));
-                    return Collections.emptyList();
-                }
-            }
-
-            neededRRs.forEach(sources::offerFirst);
-            ResourceRecord source;
-            while((source = sources.pollFirst()) != null) {
-
-                if (source.getDnsType().equals(DNSType.NS)) {
-                    pendingTasks.offerFirst(this);
-                    pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
-                    return Collections.emptyList();
-                } else if (source.getDnsType().equals(DNSType.A)) {
-
-                    // TODO ok, we have the IP of a name serve, now we need to start reading authorities and additionals as well
-
-
-
-                    // TODO temporary code
-//                    ByteBuffer result = netClient.query(
-//                            createQueryMessage(question), source.getData(String.class), timeout);
-//                    DNSMessage message = engine.createMessageFromBuffer(result.array(), result.position());
-//                    List<ResourceRecord> rrs = new ArrayList<>();
-//                    for(int c = 0; c < message.getNumAnswers(); c++) rrs.add(message.getAnswer(c));
-//                    for(int c = 0; c < message.getNumAuthorities(); c++) rrs.add(message.getAuthority(c));
-//                    for(int c = 0; c < message.getNumAdditionals(); c++) rrs.add(message.getAdditional(c));
-//                    return rrs;
-                    return Collections.singletonList(source);
-
-
-                } else {
-                    continue;
-                }
-            }
-
-            return Collections.emptyList();
-        }
+        return lastResult.result;
     }
 
     @Override
@@ -335,30 +291,156 @@ public class AnswerProcess implements Closeable {
         closeResources();
     }
 
-    private class NameServerSearch implements SearchingTask {
+    /* Queries the cache, if the cache doesn't return any RRs then it delegates the query to other tasks */
+    private class StartSearch implements SearchingTask {
 
-        private String name;
+        private Question question;
 
-        public NameServerSearch(String name) {
-            this.name = name;
+        StartSearch(String name, DNSType type) {
+            this.question = engine.createQuestion(name, type, DNSClass.IN);
         }
 
         @Override
-        public List<ResourceRecord> tryToGetRRs(List<ResourceRecord> neededRRs, long timeout)
-                throws DNSException, InterruptedException {
-            while(name != null) {
-                Question question = engine.createQuestion(name, DNSType.NS, DNSClass.IN);
-                List<ResourceRecord> result = cache.getResourceRecords(question, timeout);
-                if (result.size() > 0) {
-                    return result;
+        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+
+            message.result = cache.getResourceRecords(question, message.calculateTimeout());
+            if(message.result.isEmpty()) {
+                pendingTasks.offerFirst(new NameServerSearchThroughOriginalName(question));
+            }
+            return message;
+        }
+    }
+
+    /* Traverses the name in the query for a NS, if found, then it delegates the search of the query to other tasks,
+     * continues traversing the name until it receives a non-empty set of RRs or the name reaches the root */
+    private class NameServerSearchThroughOriginalName implements SearchingTask {
+
+        private Deque<ResourceRecord> sources = new LinkedList<>();
+        private Question question;
+        private String name;
+
+        NameServerSearchThroughOriginalName(Question question) {
+            this.question = question;
+            this.name = question.getDnsName();
+        }
+
+        @Override
+        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+
+            if(!message.result.isEmpty()) return message;
+
+            while((name != null || !sources.isEmpty()) && message.result.isEmpty()) {
+                if(!sources.isEmpty()) {
+                    ResourceRecord source = sources.pollFirst();
+                    pendingTasks.offerFirst(this);
+                    pendingTasks.offerFirst(new SearchInNameServer(question));
+                    pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
+                    return message;
                 }
+                Question question = engine.createQuestion(name, DNSType.NS, DNSClass.IN);
+                message.result = cache.getResourceRecords(question, message.calculateTimeout());
+                Collections.reverse(message.result);
+                message.result.forEach(sources::offerFirst);
                 int dotPos;
                 name = "".equals(name)? null: ((dotPos = name.indexOf('.')) != -1)? name.substring(dotPos + 1): "";
             }
 
-            return Collections.emptyList();
+            return message;
         }
     }
+
+    /* Receives IPs of name servers and use them to get results from them. Returns the answer from the servers or
+     * delegates to other tasks if it receives no responses but one or more authorities and additionals */
+    private class SearchInNameServer implements SearchingTask {
+
+        private Question question;
+        private Deque<ResourceRecord> sources = new LinkedList<>();
+
+        SearchInNameServer(Question question) {
+            this.question = question;
+        }
+
+        @Override
+        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+
+            Collections.reverse(message.result);
+            message.result.forEach(sources::offerFirst);
+            message.result = Collections.emptyList();
+
+            while(!sources.isEmpty() && message.result.isEmpty()) {
+
+                ResourceRecord source = sources.pollFirst();
+                if(source.getDnsType().equals(DNSType.NS)) {
+                    pendingTasks.offerFirst(this);
+                    pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
+                    return message;
+                }
+                ByteBuffer result = netClient.query(
+                        createQueryMessage(question), source.getData(String.class), message.calculateTimeout());
+                DNSMessage response = engine.createMessageFromBuffer(result.array(), result.position());
+                if(response.getNumAnswers() > 0) {
+                    message.result = new ArrayList<>();
+                    for(int c = 0; c < response.getNumAnswers(); c++) message.result.add(response.getAnswer(c));
+                } else {
+                    for(int c = 0; c < response.getNumAuthorities(); c++) {
+                        ResourceRecord ns = response.getAuthority(c);
+                        sources.offerFirst(ns);
+                        cache.addResourceRecord(ns);
+                    }
+                    for(int c = 0; c < response.getNumAdditionals(); c++) {
+                        cache.addResourceRecord(response.getAdditional(c));
+                    }
+                }
+
+            }
+            return message;
+        }
+    }
+
+//    private class SearchInNameServerOld implements SearchingTask {
+//
+//        private Deque<ResourceRecord> sources = new LinkedList<>();
+//
+//        @Override
+//        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+//
+//            int flags = message.flags;
+//            message.flags = 0;
+//
+//            Collections.reverse(message.result);
+//            message.result.forEach(sources::offerFirst);
+//            ResourceRecord source;
+//            while((source = sources.pollFirst()) != null) {
+//
+//                if (source.getDnsType().equals(DNSType.NS)) {
+//                    pendingTasks.offerFirst(this);
+//                    pendingTasks.offerFirst(new StartSearch(source.getDnsName(), DNSType.A));
+//                    return null;
+//                } else if (source.getDnsType().equals(DNSType.A)) {
+//
+//                    // TODO ok, we have the IP of a name serve, now we need to start reading authorities and additionals as well
+//
+//
+//
+//                    // TODO temporary code
+////                    ByteBuffer result = netClient.query(
+////                            createQueryMessage(question), source.getData(String.class), timeout);
+////                    DNSMessage message = engine.createMessageFromBuffer(result.array(), result.position());
+////                    List<ResourceRecord> rrs = new ArrayList<>();
+////                    for(int c = 0; c < message.getNumAnswers(); c++) rrs.add(message.getAnswer(c));
+////                    for(int c = 0; c < message.getNumAuthorities(); c++) rrs.add(message.getAuthority(c));
+////                    for(int c = 0; c < message.getNumAdditionals(); c++) rrs.add(message.getAdditional(c));
+////                    return rrs;
+//                    return Collections.singletonList(source);
+//
+//
+//                } else {
+//                    continue;
+//                }
+//            }
+//            return null;
+//        }
+//    }
 
     private ByteBuffer createQueryMessage(Question question) {
         short id = getNextId();
