@@ -67,7 +67,7 @@ public class HinfoValueConverter implements RRValueConverter {
     }
 
     /**
-     * Holds data related to a HINFO (Host info) Resource Record
+     * Holds data related to a HINFO (Host info) Resource Record.
      */
     @SuppressWarnings("WeakerAccess")
     public static final class HinfoData {
@@ -75,6 +75,11 @@ public class HinfoValueConverter implements RRValueConverter {
         private final String cpu;
         private final String operatingSystem;
 
+        /**
+         * Creates an object containing the data value for a HINFO.
+         * @param cpu CPU Type of the host
+         * @param operatingSystem Operating system running in the host.
+         */
         public HinfoData(String cpu, String operatingSystem) {
             this.cpu = cpu;
             this.operatingSystem = operatingSystem;

@@ -79,6 +79,11 @@ public class MxValueConverter implements RRValueConverter {
         private final int preference;
         private final String mailServer;
 
+        /**
+         * Creates an object that contains the data value of a MX resource record.
+         * @param preference A number specifying the preference given to this RR among others at the same owner.
+         * @param mailServer The name server that handles the email for this name.
+         */
         public MxData(int preference, String mailServer) {
             this.preference = preference;
             this.mailServer = mailServer;
@@ -100,7 +105,6 @@ public class MxValueConverter implements RRValueConverter {
         public String getMailServer() {
             return mailServer;
         }
-
 
         @Override
         public String toString() {

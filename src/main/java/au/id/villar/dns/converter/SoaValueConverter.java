@@ -96,7 +96,8 @@ public class SoaValueConverter implements RRValueConverter {
     }
 
     /**
-     * Holds data related to a SOA (tart of authority) Resource Record
+     * Holds data related to a SOA (start of authority) Resource Record. For more information see the FRC-1035:
+     * https://tools.ietf.org/html/rfc1035
      */
     @SuppressWarnings("WeakerAccess")
     public static final class SoaData {
@@ -109,6 +110,17 @@ public class SoaValueConverter implements RRValueConverter {
         private final long expire;
         private final long minimum;
 
+        /**
+         * Creates an object that contains data value of a SOA Resource record.
+         * @param domainName The domain name of the name server that is the source of data for this zone.
+         * @param mailbox A domain name which specifies the mailbox of the person responsible for this zone.
+         * @param serial The version number of the original copy of the zone.
+         * @param refreshInterval A time interval before the zone should be refreshed.
+         * @param retryInterval A time interval that should elapse before a failed refresh should be retried.
+         * @param expire The upper limit on the time interval that can elapse before the zone is no longer
+         *               authoritative.
+         * @param minimum The minimum TTL field that should be exported with any resource record from this zone.
+         */
         public SoaData(String domainName, String mailbox, long serial, long refreshInterval, long retryInterval,
                 long expire, long minimum) {
             this.domainName = domainName;
@@ -120,30 +132,58 @@ public class SoaValueConverter implements RRValueConverter {
             this.minimum = minimum;
         }
 
+        /**
+         * The domain name of the name server that is the source of data for this zone.
+         * @return The domain name of the name server that is the source of data for this zone.
+         */
         public String getDomainName() {
             return domainName;
         }
 
+        /**
+         * A domain name which specifies the mailbox of the person responsible for this zone.
+         * @return A domain name which specifies the mailbox of the person responsible for this zone.
+         */
         public String getMailbox() {
             return mailbox;
         }
 
+        /**
+         * The version number of the original copy of the zone.
+         * @return The version number of the original copy of the zone.
+         */
         public long getSerial() {
             return serial;
         }
 
+        /**
+         * A time interval before the zone should be refreshed.
+         * @return A time interval before the zone should be refreshed.
+         */
         public long getRefreshInterval() {
             return refreshInterval;
         }
 
+        /**
+         * A time interval that should elapse before a failed refresh should be retried.
+         * @return A time interval that should elapse before a failed refresh should be retried.
+         */
         public long getRetryInterval() {
             return retryInterval;
         }
 
+        /**
+         * The upper limit on the time interval that can elapse before the zone is no longer authoritative.
+         * @return The upper limit on the time interval that can elapse before the zone is no longer authoritative.
+         */
         public long getExpire() {
             return expire;
         }
 
+        /**
+         * The minimum TTL field that should be exported with any resource record from this zone.
+         * @return The minimum TTL field that should be exported with any resource record from this zone.
+         */
         public long getMinimum() {
             return minimum;
         }

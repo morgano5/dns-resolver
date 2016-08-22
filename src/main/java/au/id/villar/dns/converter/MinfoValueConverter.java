@@ -79,24 +79,30 @@ public class MinfoValueConverter implements RRValueConverter {
         private final String adminMaibox;
         private final String errorMailbox;
 
+        /**
+         * Creates an object to contain the data value for a MINFO Resource record.
+         * @param adminMaibox A domain name specifying a mailbox of the responsible for the mailing list or mailbox.
+         * @param errorMailbox A domain name specifying a mailbox used to receive error messages related to the mailing
+         *                     list or mailbox.
+         */
         public MinfoData(String adminMaibox, String errorMailbox) {
             this.adminMaibox = adminMaibox;
             this.errorMailbox = errorMailbox;
         }
 
         /**
-         * A domain name which specifies a mailbox which is responsible for the mailing list or mailbox
-         * @return A domain name which specifies a mailbox which is responsible for the mailing list or mailbox
+         * A domain name specifying a mailbox of the responsible for the mailing list or mailbox.
+         * @return A domain name specifying a mailbox of the responsible for the mailing list or mailbox.
          */
         public String getAdminMaibox() {
             return adminMaibox;
         }
 
         /**
-         * A domain name which specifies a mailbox which is to receive error messages related to the mailing list or
-         * mailbox specified by the owner of the MINFO resource record.
-         * @return A domain name which specifies a mailbox which is to receive error messages related to the mailing
-         * list or mailbox specified by the owner of the MINFO resource record.
+         * A domain name specifying a mailbox used to receive error messages related to the mailing list or
+         * mailbox.
+         * @return A domain name specifying a mailbox used to receive error messages related to the mailing list or
+         * mailbox.
          */
         public String getErrorMailbox() {
             return errorMailbox;
