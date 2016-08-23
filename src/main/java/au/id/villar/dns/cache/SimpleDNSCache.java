@@ -49,6 +49,8 @@ public class SimpleDNSCache implements DNSCache {
         if(position < 0) {
             cachedRecords.add(-position - 1, wrapper);
             if(cachedRecords.size() > numEntries) cachedRecords.remove(numEntries - 1);
+        } else if (resourceRecord.dataIsEqual(cachedRecords.get(position).getResourceRecord())) {
+            cachedRecords.set(position, wrapper);
         } else {
             cachedRecords.add(position, wrapper);
         }

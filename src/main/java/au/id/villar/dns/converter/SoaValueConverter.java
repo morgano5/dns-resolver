@@ -95,6 +95,11 @@ public class SoaValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
     /**
      * Holds data related to a SOA (start of authority) Resource Record. For more information see the FRC-1035:
      * https://tools.ietf.org/html/rfc1035
@@ -186,6 +191,35 @@ public class SoaValueConverter implements RRValueConverter {
          */
         public long getMinimum() {
             return minimum;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            SoaData soaData = (SoaData) o;
+
+            if (serial != soaData.serial) return false;
+            if (refreshInterval != soaData.refreshInterval) return false;
+            if (retryInterval != soaData.retryInterval) return false;
+            if (expire != soaData.expire) return false;
+            if (minimum != soaData.minimum) return false;
+            if (!domainName.equals(soaData.domainName)) return false;
+            return mailbox.equals(soaData.mailbox);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = domainName.hashCode();
+            result = 31 * result + mailbox.hashCode();
+            result = 31 * result + (int) (serial ^ (serial >>> 32));
+            result = 31 * result + (int) (refreshInterval ^ (refreshInterval >>> 32));
+            result = 31 * result + (int) (retryInterval ^ (retryInterval >>> 32));
+            result = 31 * result + (int) (expire ^ (expire >>> 32));
+            result = 31 * result + (int) (minimum ^ (minimum >>> 32));
+            return result;
         }
 
         @Override

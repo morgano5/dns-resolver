@@ -19,6 +19,7 @@ import au.id.villar.dns.converter.*;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -327,6 +328,10 @@ public class DNSEngine {
             return arrayObject.length;
         }
 
+        @Override
+        public boolean areEqual(Object rawObject1, Object rawObject2) {
+            return Arrays.equals((byte[])rawObject1, (byte[])rawObject2);
+        }
     }
 
     @SuppressWarnings("unchecked")

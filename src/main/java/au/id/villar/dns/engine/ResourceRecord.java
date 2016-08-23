@@ -55,6 +55,10 @@ public final class ResourceRecord implements DNSItem {
         return converter.convertValue(data, tClass);
     }
 
+    public boolean dataIsEqual(ResourceRecord other) {
+        return converter.areEqual(data, other.data);
+    }
+
     @Override
     public String toString() {
         return "RR{" +

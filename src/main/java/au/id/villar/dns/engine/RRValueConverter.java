@@ -65,4 +65,11 @@ public interface RRValueConverter {
     int writeRawData(Object rawObject, byte[] array, int offset, int linkOffset,
             Map<String, Integer> nameLinks);
 
+    /**
+     *
+     * @param rawObject1
+     * @param rawObject2
+     * @return
+     */
+    boolean areEqual(Object rawObject1, Object rawObject2);
 }

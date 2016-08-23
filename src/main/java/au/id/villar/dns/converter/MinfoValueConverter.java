@@ -70,6 +70,11 @@ public class MinfoValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
     /**
      * Holds data related to a MINFO (Mailbox info) Resource Record
      */
@@ -108,6 +113,22 @@ public class MinfoValueConverter implements RRValueConverter {
             return errorMailbox;
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            MinfoData minfoData = (MinfoData) o;
+
+            return adminMaibox.equals(minfoData.adminMaibox) && errorMailbox.equals(minfoData.errorMailbox);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = adminMaibox.hashCode();
+            result = 31 * result + errorMailbox.hashCode();
+            return result;
+        }
 
         @Override
         public String toString() {

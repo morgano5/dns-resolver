@@ -79,6 +79,11 @@ public class AAAAValueConverter implements RRValueConverter {
         return 16;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return Arrays.equals((byte[])rawObject1, (byte[])rawObject2);
+    }
+
     private byte[] createFromString(String str) {
 
         if(!Utils.isValidIPv6(str))

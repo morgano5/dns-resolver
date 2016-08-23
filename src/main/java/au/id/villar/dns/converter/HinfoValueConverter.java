@@ -66,6 +66,11 @@ public class HinfoValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
     /**
      * Holds data related to a HINFO (Host info) Resource Record.
      */
@@ -104,6 +109,24 @@ public class HinfoValueConverter implements RRValueConverter {
         @Override
         public String toString() {
             return "CPU: " + cpu + ", Operating System: " + operatingSystem;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            HinfoData hinfoData = (HinfoData) o;
+
+            return cpu.equals(hinfoData.cpu) && operatingSystem.equals(hinfoData.operatingSystem);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = cpu.hashCode();
+            result = 31 * result + operatingSystem.hashCode();
+            return result;
         }
     }
 }

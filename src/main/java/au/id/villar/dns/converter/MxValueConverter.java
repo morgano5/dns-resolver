@@ -70,6 +70,11 @@ public class MxValueConverter implements RRValueConverter {
         return offset - start;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
     /**
      * Holds data related to a MX (Mailbox exchange) Resource Record
      */
@@ -104,6 +109,23 @@ public class MxValueConverter implements RRValueConverter {
          */
         public String getMailServer() {
             return mailServer;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            MxData mxData = (MxData) o;
+
+            return preference == mxData.preference && mailServer.equals(mxData.mailServer);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = preference;
+            result = 31 * result + mailServer.hashCode();
+            return result;
         }
 
         @Override

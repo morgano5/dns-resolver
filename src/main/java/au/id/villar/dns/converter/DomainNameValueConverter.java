@@ -53,4 +53,9 @@ public class DomainNameValueConverter implements RRValueConverter {
         return Utils.writeDomainNameAndUpdateLinks(rawObject.toString(), array, offset, linkOffset, nameLinks);
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
 }

@@ -60,4 +60,9 @@ public class TxtValueConverter implements RRValueConverter {
         return Utils.writeText(rawObject.toString(), array, offset);
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
 }

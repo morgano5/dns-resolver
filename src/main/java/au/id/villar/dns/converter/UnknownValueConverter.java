@@ -17,6 +17,7 @@ package au.id.villar.dns.converter;
 
 import au.id.villar.dns.engine.RRValueConverter;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -55,6 +56,11 @@ public class UnknownValueConverter implements RRValueConverter {
         byte[] arrayValue = (byte[])rawObject;
         System.arraycopy(arrayValue, 0, array, offset, arrayValue.length);
         return arrayValue.length;
+    }
+
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return Arrays.equals((byte[])rawObject1, (byte[])rawObject2);
     }
 
     private String byteToString(byte[] bytes) {

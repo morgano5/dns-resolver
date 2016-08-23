@@ -63,6 +63,11 @@ public class WksValueConverter implements RRValueConverter {
         return value.getBitmap().length + 5;
     }
 
+    @Override
+    public boolean areEqual(Object rawObject1, Object rawObject2) {
+        return rawObject1.equals(rawObject2);
+    }
+
     @SuppressWarnings("WeakerAccess")
     public static final class WksData {
 
@@ -86,6 +91,27 @@ public class WksValueConverter implements RRValueConverter {
 
         public byte[] getBitmap() {
             return bitmap.clone();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            WksData wksData = (WksData) o;
+
+            if (protocol != wksData.protocol) return false;
+            if (!Arrays.equals(ipv4, wksData.ipv4)) return false;
+            return Arrays.equals(bitmap, wksData.bitmap);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Arrays.hashCode(ipv4);
+            result = 31 * result + protocol;
+            result = 31 * result + Arrays.hashCode(bitmap);
+            return result;
         }
 
         @Override

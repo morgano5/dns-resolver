@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.util.concurrent.TimeoutException;
 
 import static au.id.villar.dns.net.DNSQueryClient.NO_OP;
 
@@ -76,13 +77,13 @@ public class DNSRequestClient implements Closeable {
      *                 size of the query.
      * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
      * @param timeout The approximate amount of time in milliseconds to wait for a response to be ready.
-     * @return A buffer with the raw response from the name server, or null if the call to this method timeout and there
-     * is no response available.
+     * @return A buffer with the raw response from the name server.
      * @throws DNSException If a DNS related error happened during the process.
      * @throws InterruptedException If the executing thread was interrupted.
+     * @throws TimeoutException if the call to this method timeout and there is no response available.
      */
     public ByteBuffer query(ByteBuffer question, String dnsServerAddress, long timeout)
-            throws DNSException, InterruptedException {
+            throws DNSException, InterruptedException, TimeoutException {
 
         ResultHolder holder = new ResultHolder();
 
@@ -111,6 +112,7 @@ public class DNSRequestClient implements Closeable {
             }
         }
         if(holder.exception != null) throw holder.exception;
+        if(holder.result == null) throw new TimeoutException("DNS query couldn't be completed in the given time");
         return holder.result;
     }
 

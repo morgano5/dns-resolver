@@ -16,6 +16,7 @@
 package au.id.villar.dns;
 
 import au.id.villar.dns.cache.DNSCache;
+import au.id.villar.dns.converter.SoaValueConverter;
 import au.id.villar.dns.engine.DNSClass;
 import au.id.villar.dns.engine.DNSEngine;
 import au.id.villar.dns.engine.DNSMessage;
@@ -32,30 +33,10 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class AnswerProcess implements Closeable {
-
-    private class TaskMessage {
-        private List<ResourceRecord> result;
-        private long timeLimit;
-
-        TaskMessage(long timeout) {
-            this.timeLimit = System.currentTimeMillis() + timeout;
-            this.result = Collections.emptyList();
-        }
-
-        long calculateTimeout() {
-            return timeLimit - System.currentTimeMillis();
-        }
-    }
-
-    private interface SearchingTask {
-
-        TaskMessage tryToGetRRs(TaskMessage taskMessage)
-                throws DNSException, InterruptedException;
-
-    }
 
     private final AtomicInteger nextId = new AtomicInteger(1);
     private final DNSEngine engine;
@@ -69,14 +50,13 @@ public class AnswerProcess implements Closeable {
     }
 
     public List<ResourceRecord> lookUp(String name, DNSType type, long timeout)
-            throws DNSException, InterruptedException {
+            throws DNSException, InterruptedException, TimeoutException {
 
-
+        pendingTasks.clear();
         pendingTasks.offerFirst(new StartSearch(name, type));
         SearchingTask task;
         TaskMessage lastResult = new TaskMessage(timeout);
         while((task = pendingTasks.pollFirst()) != null) {
-            // TODO to decide what should happen on timeout
             // TODO verify no recursive queries are happening
             lastResult = task.tryToGetRRs(lastResult);
         }
@@ -98,7 +78,8 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+        public TaskMessage tryToGetRRs(TaskMessage message)
+                throws DNSException, InterruptedException, TimeoutException {
 
             message.result = cache.getResourceRecords(question, message.calculateTimeout());
             if(message.result.isEmpty()) {
@@ -122,7 +103,8 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+        public TaskMessage tryToGetRRs(TaskMessage message)
+                throws DNSException, InterruptedException, TimeoutException {
 
             if(!message.result.isEmpty()) return message;
 
@@ -160,7 +142,8 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message) throws DNSException, InterruptedException {
+        public TaskMessage tryToGetRRs(TaskMessage message)
+                throws DNSException, InterruptedException, TimeoutException {
 
             Collections.reverse(message.result);
             message.result.forEach(sources::offerFirst);
@@ -174,6 +157,12 @@ public class AnswerProcess implements Closeable {
                     pendingTasks.offerFirst(new StartSearch(source.getData(String.class), DNSType.A));
                     return message;
                 }
+                if(source.getDnsType().equals(DNSType.SOA)) {
+                    pendingTasks.offerFirst(this);
+                    pendingTasks.offerFirst(new StartSearch(source.getData(SoaValueConverter.SoaData.class).getDomainName(), DNSType.A));
+                    return message;
+                }
+
 System.out.println("Query: " + question + ", using: " + source);
                 ByteBuffer result = netClient.query(
                         createQueryMessage(question), source.getData(String.class), message.calculateTimeout());
@@ -213,4 +202,25 @@ System.out.println("Query: " + question + ", using: " + source);
         netClient.close();
     }
 
+    private interface SearchingTask {
+
+        TaskMessage tryToGetRRs(TaskMessage taskMessage) throws DNSException, InterruptedException, TimeoutException;
+
+    }
+
+    private class TaskMessage {
+        private List<ResourceRecord> result;
+        private long timeLimit;
+
+        TaskMessage(long timeout) {
+            this.timeLimit = System.currentTimeMillis() + timeout;
+            this.result = Collections.emptyList();
+        }
+
+        long calculateTimeout() throws TimeoutException {
+            long timeout = timeLimit - System.currentTimeMillis();
+            if(timeout <= 0) throw new TimeoutException("DNS Query couldn't complete on time");
+            return timeout;
+        }
+    }
 }
