@@ -23,7 +23,7 @@ import au.id.villar.dns.engine.DNSMessage;
 import au.id.villar.dns.engine.DNSType;
 import au.id.villar.dns.engine.Question;
 import au.id.villar.dns.engine.ResourceRecord;
-import au.id.villar.dns.net.DNSRequestClient;
+import au.id.villar.dns.net.DNSNetClient;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -40,7 +40,7 @@ public class AnswerProcess implements Closeable {
 
     private final AtomicInteger nextId = new AtomicInteger(1);
     private final DNSEngine engine;
-    private final DNSRequestClient netClient = new DNSRequestClient();
+    private final DNSNetClient netClient = new DNSNetClient();
     private DNSCache cache;
     private Deque<SearchingTask> pendingTasks = new LinkedList<>();
 

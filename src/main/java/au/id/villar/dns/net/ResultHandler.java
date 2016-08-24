@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 
 /**
  * Interface used to report when a result from a name server is ready.
- * @see DNSRequestClient
+ * @see DNSNetClient
  */
 @FunctionalInterface
 public interface ResultHandler {

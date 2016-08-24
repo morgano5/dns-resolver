@@ -32,47 +32,22 @@ import static au.id.villar.dns.net.DNSQueryClient.NO_OP;
  * to the specified {@link ResultHandler} and the process finishes, unless the response if truncated in which case
  * another query is performed using TCP, port 53.
  */
-public class DNSRequestClient implements Closeable {
+public class DNSNetClient implements Closeable {
 
     private static final int DNS_PORT = 53;
 
     private final UDPDNSQueryClient udpClient;
     private final TCPDNSQueryClient tcpClient;
+    private boolean needsTCP;
 
     /** Constructor */
-    public DNSRequestClient() {
+    public DNSNetClient() {
         this.udpClient = new UDPDNSQueryClient();
         this.tcpClient = new TCPDNSQueryClient();
     }
 
     /**
-     * Starts a query using a {@link Selector}. The specified selector will be used to monitor when the communication
-     * channel is ready, so the thread unblocked by selector can continue by invoking
-     * {@link #processAttachment(SelectionKey)}.
-     * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
-     *                 size of the query.
-     * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
-     * @param selector The selector used to monitor whenever the communications channel is ready for an operation.
-     * @param resultHandler A listener to be invoked when there is a result from the server or when there is an error.
-     * @return {@literal true} if the operation was already finished and the given {@link Selector} was not used.
-     * {@literal false} otherwise.
-     * @see #checkAndDoTCPIfNeeded(ByteBuffer, DNSException, ByteBuffer, String, Selector, ResultHandler)
-     * @see Selector
-     * @see SelectionKey
-     */
-    public boolean startQuery(ByteBuffer question, String dnsServerAddress, Selector selector,
-            ResultHandler resultHandler) {
-
-        if(selector == null) throw new NullPointerException("selector cannot be null");
-        if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
-
-        return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, selector,
-                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultHandler));
-
-    }
-
-    /**
-     * Executes a query asynchronously.
+     * Executes a query.
      * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
      *                 size of the query.
      * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
@@ -117,9 +92,35 @@ public class DNSRequestClient implements Closeable {
     }
 
     /**
+     * Starts a query asynchronously using a {@link Selector}. The specified selector will be used to monitor when the
+     * communication channel is ready, so the thread unblocked by selector can continue by invoking
+     * {@link #processAttachment(SelectionKey)}.
+     * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
+     *                 size of the query.
+     * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
+     * @param selector The selector used to monitor whenever the communications channel is ready for an operation.
+     * @param resultHandler A listener to be invoked when there is a result from the server or when there is an error.
+     * @return {@literal true} if the operation was already finished and the given {@link Selector} was not used.
+     * {@literal false} otherwise.
+     * @see #processAttachment(SelectionKey)
+     * @see Selector
+     * @see SelectionKey
+     */
+    public boolean startQuery(ByteBuffer question, String dnsServerAddress, Selector selector,
+            ResultHandler resultHandler) {
+
+        if(selector == null) throw new NullPointerException("selector cannot be null");
+        if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
+
+        return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, selector,
+                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultHandler));
+
+    }
+
+    /**
      * Utility method to check after a {@link Selector#select()} if the resulting {@link SelectionKey}s contain
-     * a pending task comming from a DNS query iniciated by a {@link DNSRequestClient} and execute it if this is the
-     * case. If the {@link SelectionKey}'s attachment is not related to any {@link DNSRequestClient} then it just does
+     * a pending task coming from a DNS query initiated by a {@link DNSNetClient} and execute it if this is the
+     * case. If the {@link SelectionKey}'s attachment is not related to any {@link DNSNetClient} then it just does
      * nothing.
      * @param selectionKey Any key to test, taken from {@link Selector#selectedKeys()} after a
      * {@link Selector#select()}.
@@ -135,6 +136,43 @@ public class DNSRequestClient implements Closeable {
         }
     }
 
+    /**
+     * Starts a query asynchronously. If it was possible to get a response during the call to this method then
+     * {@literal true} is returned, otherwise teh continuation of the query must be retried with successive calls to
+     * {@link #retryQuery()} until {@literal true} is returned.
+     * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
+     *                 size of the query.
+     * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
+     * @param resultHandler A listener to be invoked when there is a result from the server or when there is an error.
+     * @return {@literal true} if the operation was able to return a result (by invoking the {@code resulthandler}).
+     * {@literal false} otherwise.
+     * @see #retryQuery()
+     * @see Selector
+     * @see SelectionKey
+     */
+    public boolean startQuery(ByteBuffer question, String dnsServerAddress, ResultHandler resultHandler) {
+
+        if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
+
+        needsTCP = false;
+        return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, null,
+                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, null, resultHandler));
+
+    }
+
+    /**
+     * Tries to finish a query started with {@link #startQuery(ByteBuffer, String, ResultHandler)}. This method must
+     * be executed preiodically until it returns {@literal true}.
+     * @return {@literal true} if the query was finalised and the {@link ResultHandler} was invoked with a result.
+     * {@literal false} otherwise.
+     * @see #startQuery(ByteBuffer, String, Selector, ResultHandler)
+     * @see Selector
+     * @see SelectionKey
+     */
+    public boolean retryQuery() {
+        return udpClient.doIO() == NO_OP && (!needsTCP || tcpClient.doIO() == NO_OP);
+    }
+
     @Override
     public void close() throws IOException {
         IOException exception = null;
@@ -148,6 +186,7 @@ public class DNSRequestClient implements Closeable {
     private void checkAndDoTCPIfNeeded(ByteBuffer result, DNSException exception, ByteBuffer question, String address,
             Selector selector, ResultHandler resultHandler) {
         if(udpIsTruncated(result)) {
+            needsTCP = true;
             question.position(0);
             tcpClient.startQuery(question, address, DNS_PORT, selector, (r, e) -> {
                 if(r != null) r.position(2);
