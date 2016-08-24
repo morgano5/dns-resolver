@@ -28,9 +28,17 @@ import java.util.concurrent.TimeoutException;
 import static au.id.villar.dns.net.DNSQueryClient.NO_OP;
 
 /**
- * Handles queries to a name server. First, a query is done using UPD, port 53; if there is an answer it is reported
- * to the specified {@link ResultHandler} and the process finishes, unless the response if truncated in which case
- * another query is performed using TCP, port 53.
+ * Handles queries to a name server. There are three way of using an object of this class:
+ * <ol>
+ *     <li>Synchronized query using {@link #query(ByteBuffer, String, long)}.</li>
+ *     <li>Asynchronous query with a {@link Selector} using {@link #startQuery(ByteBuffer, String, Selector,
+ *     ResultHandler)} and {@link #processAttachment(SelectionKey)}.</li>
+ *     <li>Asynchronous query using {@link #startQuery(ByteBuffer, String, ResultHandler)} and {@link #retryQuery()}.
+ *     </li>
+ * </ol>
+ * The query process is a follows: First, a query is done using UPD, port 53; if there is an answer then it is returned
+ * to the calling code and the process finishes, unless the response if truncated in which case another query
+ * is performed using TCP, port 53.
  */
 public class DNSNetClient implements Closeable {
 
@@ -47,7 +55,7 @@ public class DNSNetClient implements Closeable {
     }
 
     /**
-     * Executes a query.
+     * Executes a query synchronously.
      * @param question A buffer containing the raw DNS query message, prefixed with a two-byte number specifying the
      *                 size of the query.
      * @param dnsServerAddress The address (IPv4, IPv6) of the name server.
