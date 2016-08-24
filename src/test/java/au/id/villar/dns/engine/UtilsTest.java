@@ -15,8 +15,6 @@
  */
 package au.id.villar.dns.engine;
 
-import au.id.villar.dns.engine.ParseResult;
-import au.id.villar.dns.engine.Utils;
 import org.junit.Test;
 
 import java.util.Arrays;

@@ -21,13 +21,14 @@ import au.id.villar.dns.engine.*;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 public interface DNSCache {
 
     void addResourceRecord(ResourceRecord resourceRecord);
 
     List<ResourceRecord> getResourceRecords(Question question, long timeout)
-            throws DNSException, InterruptedException;
+            throws DNSException, InterruptedException, TimeoutException;
 
     boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler);
 

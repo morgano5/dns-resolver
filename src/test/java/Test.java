@@ -24,10 +24,11 @@ import au.id.villar.dns.engine.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 public class Test {
 
-    public static void main(String[] args) throws InterruptedException, DNSException {
+    public static void main(String[] args) throws InterruptedException, DNSException, TimeoutException {
 
         List<String> rootServers = Arrays.asList(
                     "198.41.0.4",
@@ -51,7 +52,7 @@ public class Test {
         cache.addResourceRecord(engine.createResourceRecord("", DNSType.NS, DNSClass.IN, 0, ""));
 
         AnswerProcess process = new AnswerProcess(engine, cache);
-        List<ResourceRecord> response = process.lookUp("mail.villar.id.au", DNSType.ALL, 10_000_000);
+        List<ResourceRecord> response = process.lookUp("www.villar.me", DNSType.ALL, 10_000_000);
 
         for(ResourceRecord record: response) {
             System.out.println(TestUtils.resourceRecordToString(record));

@@ -24,10 +24,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
+import java.util.concurrent.TimeoutException;
 
 public class DNSRequestClientTest {
 
-    public static void main(String[] args) throws IOException, DNSException, InterruptedException {
+    public static void main(String[] args) throws IOException, DNSException, InterruptedException, TimeoutException {
 
         DNSEngine engine = new DNSEngine();
         Question question = engine.createQuestion("id.au", DNSType.ALL, DNSClass.IN);

@@ -2,6 +2,7 @@
 
 A non blocking DNS resolver for Java.
 
+<!--
 This is a snippet of how to use this to get all type of RRs from a dns name (just while I write a more proper doc):
 
 ```java
@@ -26,7 +27,7 @@ for(ResourceRecord rr: result) {
     System.out.println("Result: " + rr.getDnsName() + " - " + rr.getDnsType() + " - " + rr.getData(Object.class));
 }
 ```
-
+-->
 This is still work in progress. Basic functionality is already there but there are some issues to fix.
 
 ## TODO list

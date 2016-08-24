@@ -24,13 +24,14 @@ import au.id.villar.dns.engine.ResourceRecord;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
 
 public class SimpleDNSCacheTest {
 
     @Test
-    public void addAndGetRRs() throws InterruptedException, DNSException {
+    public void addAndGetRRs() throws InterruptedException, DNSException, TimeoutException {
         List<ResourceRecord> records;
         DNSCache cache = new SimpleDNSCache(1000);
         DNSEngine engine = new DNSEngine();

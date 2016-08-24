@@ -58,6 +58,7 @@ public class AnswerProcess implements Closeable {
         TaskMessage lastResult = new TaskMessage(timeout);
         while((task = pendingTasks.pollFirst()) != null) {
             // TODO verify no recursive queries are happening
+            // TODO follow CNAME when needed
             lastResult = task.tryToGetRRs(lastResult);
         }
         return lastResult.result;
@@ -163,7 +164,7 @@ public class AnswerProcess implements Closeable {
                     return message;
                 }
 
-System.out.println("Query: " + question + ", using: " + source);
+System.out.println("Query: " + question + ", using: " + source); // TODO remove this debugging line
                 ByteBuffer result = netClient.query(
                         createQueryMessage(question), source.getData(String.class), message.calculateTimeout());
                 DNSMessage response = engine.createMessageFromBuffer(result.array(), result.position());

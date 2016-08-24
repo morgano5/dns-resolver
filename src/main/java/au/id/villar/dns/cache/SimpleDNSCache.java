@@ -30,7 +30,9 @@ import java.util.List;
 ////MAILA           254 A request for mail agent RRs (Obsolete - see MX)
 ////*               255 A request for all records
 ////*/
-////            // TODO support queries returning more than one resource record type
+////
+// TODO support queries returning more than one resource record type
+// TODO return CNAME when it is the only RR found in the name
 public class SimpleDNSCache implements DNSCache {
 
 
