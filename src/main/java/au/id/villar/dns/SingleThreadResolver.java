@@ -15,6 +15,7 @@
  */
 package au.id.villar.dns;
 
+@Deprecated // To be deleted
 public class SingleThreadResolver /* implements Closeable */ {
 
 //    private static final int UDP_DATAGRAM_MAX_SIZE = 512;

@@ -36,6 +36,11 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/*
+https://tools.ietf.org/html/rfc1033
+https://tools.ietf.org/html/rfc1034
+https://tools.ietf.org/html/rfc1035
+*/
 public class AnswerProcess implements Closeable {
 
     private final AtomicInteger nextId = new AtomicInteger(1);

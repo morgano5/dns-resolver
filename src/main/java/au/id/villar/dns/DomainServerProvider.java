@@ -15,6 +15,7 @@
  */
 package au.id.villar.dns;
 
+@Deprecated // apparently not in use
 class DomainServerProvider {
 
 //    private DnsEngine engine;

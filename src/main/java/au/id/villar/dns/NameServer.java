@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+@Deprecated // apparently not in use
 class NameServer {
 
     private final String name;
