@@ -52,7 +52,7 @@ public class Test {
         cache.addResourceRecord(engine.createResourceRecord("", DNSType.NS, DNSClass.IN, 0, ""));
 
         AnswerProcess process = new AnswerProcess(engine, cache);
-        List<ResourceRecord> response = process.lookUp("*.villar.me", DNSType.ALL, 10_000_000);
+        List<ResourceRecord> response = process.lookUp("villar.me", DNSType.ALL, 10_000_000);
 
         for(ResourceRecord record: response) {
             System.out.println(TestUtils.resourceRecordToString(record));

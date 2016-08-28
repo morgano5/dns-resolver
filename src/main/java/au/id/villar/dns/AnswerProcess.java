@@ -28,6 +28,8 @@ import au.id.villar.dns.net.DNSNetClient;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
@@ -49,24 +51,61 @@ public class AnswerProcess implements Closeable {
     private DNSCache cache;
     private Deque<SearchingTask> pendingTasks = new LinkedList<>();
 
+    private TaskMessage lastResult;
+
     public AnswerProcess(DNSEngine engine, DNSCache cache) {
         this.engine = engine;
         this.cache = cache;
     }
 
+    // TODO throw TimeoutException when time is up
     public List<ResourceRecord> lookUp(String name, DNSType type, long timeout)
             throws DNSException, InterruptedException, TimeoutException {
 
+        TaskMessage message = new TaskMessage(null, null);
+        boolean done = startLookUp(name, type, (rr, e) -> {
+            message.error = e;
+            message.result = rr;
+        });
+        while(!done) {
+            Thread.sleep(10);
+            done = retryLookUp();
+        }
+        if(message.error != null) throw new DNSException(message.error);
+        return message.result;
+    }
+
+    public boolean startLookUp(String name, DNSType type, Selector selector, ResourceRecordHandler handler) {
         pendingTasks.clear();
         pendingTasks.offerFirst(new StartSearch(name, type));
+        lastResult = new TaskMessage(selector, handler);
+        return retryLookUp();
+    }
+
+// TODO review this code
+//    public static void processAttachment(SelectionKey selectionKey) {
+//        Object attachment = selectionKey.attachment();
+//        if(selectionKey.isValid() && attachment instanceof AnswerProcess) {
+//            ((AnswerProcess)attachment).retryLookUp();
+//        }
+//    }
+
+    public boolean startLookUp(String name, DNSType type, ResourceRecordHandler handler) {
+        return startLookUp(name, type, null, handler);
+    }
+
+    public boolean retryLookUp() {
+
         SearchingTask task;
-        TaskMessage lastResult = new TaskMessage(timeout);
         while((task = pendingTasks.pollFirst()) != null) {
             // TODO verify no recursive queries are happening
             // TODO follow CNAME when needed
+            // TODO check lastResult.error
             lastResult = task.tryToGetRRs(lastResult);
+            if(lastResult.waitingIO) return false;
         }
-        return lastResult.result;
+        lastResult.handler.handleResourceRecord(lastResult.result, lastResult.error);
+        return true;
     }
 
     @Override
@@ -84,11 +123,22 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message)
-                throws DNSException, InterruptedException, TimeoutException {
+        public TaskMessage tryToGetRRs(TaskMessage message) {
 
-            message.result = cache.getResourceRecords(question, message.calculateTimeout());
-            if(message.result.isEmpty()) {
+            if(!message.waitingIO) {
+                message.waitingIO = !cache.getResourceRecords(question, message.selector, (rr, e) -> {
+                    message.waitingIO = false;
+                    message.error = e;
+                    message.result = rr;
+                });
+            } else {
+                message.waitingIO = !cache.retryGetResourceRecords();
+            }
+            if(message.waitingIO) {
+                pendingTasks.offerFirst(this);
+                return message;
+            }
+            if(message.result != null && message.result.isEmpty()) {
                 pendingTasks.offerFirst(new NameServerSearchThroughOriginalName(question));
             }
             return message;
@@ -99,8 +149,8 @@ public class AnswerProcess implements Closeable {
      * continues traversing the name until it receives a non-empty set of RRs or the name reaches the root */
     private class NameServerSearchThroughOriginalName implements SearchingTask {
 
-        private Deque<ResourceRecord> sources = new LinkedList<>();
         private Question question;
+        private Deque<ResourceRecord> sources = new LinkedList<>();
         private String name;
 
         NameServerSearchThroughOriginalName(Question question) {
@@ -109,10 +159,9 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message)
-                throws DNSException, InterruptedException, TimeoutException {
+        public TaskMessage tryToGetRRs(TaskMessage message) {
 
-            if(!message.result.isEmpty()) return message;
+            if(message.error != null || !message.result.isEmpty()) return message;
 
             while(name != null || !sources.isEmpty()) {
                 if (!sources.isEmpty()) {
@@ -123,13 +172,28 @@ public class AnswerProcess implements Closeable {
                     return message;
                 }
                 do {
-                    Question question = engine.createQuestion(name, DNSType.NS, DNSClass.IN);
-                    int dotPos;
-                    name = "".equals(name) ? null : ((dotPos = name.indexOf('.')) != -1) ? name.substring(dotPos + 1) : "";
-                    List<ResourceRecord> result = cache.getResourceRecords(question, message.calculateTimeout());
-                    Collections.reverse(result);
-                    result.forEach(sources::offerFirst);
-                } while ((name != null && sources.isEmpty()));
+                    if(!message.waitingIO) {
+                        Question question = engine.createQuestion(name, DNSType.NS, DNSClass.IN);
+                        int dotPos;
+                        name = "".equals(name)? null:
+                                ((dotPos = name.indexOf('.')) != -1)? name.substring(dotPos + 1): "";
+                        message.waitingIO = !cache.getResourceRecords(question, message.selector, (rr, e) -> {
+                            message.waitingIO = false;
+                            message.error = e;
+                            if(rr != null) {
+                                Collections.reverse(rr);
+                                rr.forEach(sources::offerFirst);
+                            }
+                        });
+                    } else {
+                        message.waitingIO = !cache.retryGetResourceRecords();
+                    }
+                    if(message.waitingIO) {
+                        pendingTasks.offerFirst(this);
+                        return message;
+                    }
+                    if(message.error != null) return message;
+                } while (name != null && sources.isEmpty() && !message.waitingIO);
             }
 
             return message;
@@ -148,14 +212,19 @@ public class AnswerProcess implements Closeable {
         }
 
         @Override
-        public TaskMessage tryToGetRRs(TaskMessage message)
-                throws DNSException, InterruptedException, TimeoutException {
+        public TaskMessage tryToGetRRs(TaskMessage message) {
 
-            Collections.reverse(message.result);
-            message.result.forEach(sources::offerFirst);
-            message.result = Collections.emptyList();
+            if(message.error != null) return message;
 
-            while(!sources.isEmpty() && message.result.isEmpty()) {
+            if(message.waitingIO) {
+                message.waitingIO = !netClient.retryQuery();
+            } else {
+                Collections.reverse(message.result);
+                message.result.forEach(sources::offerFirst);
+                message.result = Collections.emptyList();
+            }
+
+            while(!sources.isEmpty() && message.result.isEmpty() && !message.waitingIO) {
 
                 ResourceRecord source = sources.pollFirst();
                 if(source.getDnsType().equals(DNSType.NS)) {
@@ -170,13 +239,15 @@ public class AnswerProcess implements Closeable {
                 }
 
 System.out.println("Query: " + question + ", using: " + source); // TODO remove this debugging line
-                ByteBuffer result = netClient.query(
-                        createQueryMessage(question), source.getData(String.class), message.calculateTimeout());
-                DNSMessage response = engine.createMessageFromBuffer(result.array(), result.position());
-                if(response.getNumAnswers() > 0) {
-                    message.result = new ArrayList<>();
-                    for(int c = 0; c < response.getNumAnswers(); c++) message.result.add(response.getAnswer(c));
-                } else {
+                message.waitingIO = !netClient.startQuery(createQueryMessage(question), source.getData(String.class), (b, e) -> {
+                    message.waitingIO = false;
+                    message.error = e;
+                    // if(e != null) return; // TODO what to do with 'e' if != null (show warning that the server was unable? just return the exception?)
+                    DNSMessage response = engine.createMessageFromBuffer(b.array(), b.position());
+                    if(response.getNumAnswers() > 0) {
+                        message.result = new ArrayList<>();
+                        for(int c = 0; c < response.getNumAnswers(); c++) message.result.add(response.getAnswer(c));
+                    }
                     for(int c = 0; c < response.getNumAuthorities(); c++) {
                         ResourceRecord ns = response.getAuthority(c);
                         sources.offerFirst(ns);
@@ -185,8 +256,11 @@ System.out.println("Query: " + question + ", using: " + source); // TODO remove 
                     for(int c = 0; c < response.getNumAdditionals(); c++) {
                         cache.addResourceRecord(response.getAdditional(c));
                     }
-                }
-
+                });
+            }
+            if(message.waitingIO) {
+                pendingTasks.offerFirst(this);
+                return message;
             }
             return message;
         }
@@ -209,24 +283,21 @@ System.out.println("Query: " + question + ", using: " + source); // TODO remove 
     }
 
     private interface SearchingTask {
-
-        TaskMessage tryToGetRRs(TaskMessage taskMessage) throws DNSException, InterruptedException, TimeoutException;
-
+        TaskMessage tryToGetRRs(TaskMessage taskMessage);
     }
 
     private class TaskMessage {
-        private List<ResourceRecord> result;
-        private long timeLimit;
+        private List<ResourceRecord> result = Collections.emptyList();
+        private Exception error;
+        private Selector selector;
+        private ResourceRecordHandler handler;
+        private boolean waitingIO;
 
-        TaskMessage(long timeout) {
-            this.timeLimit = System.currentTimeMillis() + timeout;
+        TaskMessage(Selector selector, ResourceRecordHandler handler) {
+            this.selector = selector;
+            this.handler = handler;
             this.result = Collections.emptyList();
         }
 
-        long calculateTimeout() throws TimeoutException {
-            long timeout = timeLimit - System.currentTimeMillis();
-            if(timeout <= 0) throw new TimeoutException("DNS Query couldn't complete on time");
-            return timeout;
-        }
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package au.id.villar.dns.cache;
+package au.id.villar.dns;
 
 import au.id.villar.dns.engine.ResourceRecord;
 

@@ -15,6 +15,7 @@
  */
 package au.id.villar.dns.cache;
 
+import au.id.villar.dns.ResourceRecordHandler;
 import au.id.villar.dns.engine.*;
 
 import java.nio.channels.SelectionKey;
@@ -78,12 +79,22 @@ public class SimpleDNSCache implements DNSCache {
 
     @Override
     public boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler) {
+        return getResourceRecords(question, handler);
+    }
+
+    @Override
+    public void processAttachment(SelectionKey selectionKey) {
+    }
+
+    @Override
+    public boolean getResourceRecords(Question question, ResourceRecordHandler handler) {
         handler.handleResourceRecord(getResourceRecords(question, 0), null);
         return true;
     }
 
     @Override
-    public void processAttachment(SelectionKey selectionKey) {
+    public boolean retryGetResourceRecords() {
+        return true;
     }
 
     private int compareRecordsForAdding(CachedResourceRecord item1, CachedResourceRecord item2) {

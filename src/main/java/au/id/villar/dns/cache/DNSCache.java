@@ -16,6 +16,7 @@
 package au.id.villar.dns.cache;
 
 import au.id.villar.dns.DNSException;
+import au.id.villar.dns.ResourceRecordHandler;
 import au.id.villar.dns.engine.*;
 
 import java.nio.channels.SelectionKey;
@@ -33,6 +34,10 @@ public interface DNSCache {
     boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler);
 
     void processAttachment(SelectionKey selectionKey);
+
+    boolean getResourceRecords(Question question, ResourceRecordHandler handler);
+
+    boolean retryGetResourceRecords();
 
     void clear();
 

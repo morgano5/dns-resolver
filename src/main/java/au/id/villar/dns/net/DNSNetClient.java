@@ -117,9 +117,9 @@ public class DNSNetClient implements Closeable {
     public boolean startQuery(ByteBuffer question, String dnsServerAddress, Selector selector,
             ResultHandler resultHandler) {
 
-        if(selector == null) throw new NullPointerException("selector cannot be null");
         if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
 
+        needsTCP = false;
         return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, selector,
                 (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, selector, resultHandler));
 
@@ -159,13 +159,7 @@ public class DNSNetClient implements Closeable {
      * @see SelectionKey
      */
     public boolean startQuery(ByteBuffer question, String dnsServerAddress, ResultHandler resultHandler) {
-
-        if(resultHandler == null) throw new NullPointerException("resultHandler cannot be null");
-
-        needsTCP = false;
-        return udpClient.startQuery(question, dnsServerAddress, DNS_PORT, null,
-                (r, e) -> checkAndDoTCPIfNeeded(r, e, question, dnsServerAddress, null, resultHandler));
-
+        return startQuery(question, dnsServerAddress, null, resultHandler);
     }
 
     /**

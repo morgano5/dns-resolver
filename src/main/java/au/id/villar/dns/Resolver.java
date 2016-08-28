@@ -16,7 +16,6 @@
 package au.id.villar.dns;
 
 import au.id.villar.dns.cache.DNSCache;
-import au.id.villar.dns.cache.ResourceRecordHandler;
 import au.id.villar.dns.engine.*;
 
 import java.nio.channels.SelectionKey;
@@ -108,12 +107,22 @@ public class Resolver {
 
             @Override
             public boolean getResourceRecords(Question question, Selector selector, ResourceRecordHandler handler) {
+                return getResourceRecords(question, handler);
+            }
+
+            @Override
+            public boolean getResourceRecords(Question question, ResourceRecordHandler handler) {
                 handler.handleResourceRecord(Collections.emptyList(), null);
                 return true;
             }
 
             @Override
             public void processAttachment(SelectionKey selectionKey) {
+            }
+
+            @Override
+            public boolean retryGetResourceRecords() {
+                return true;
             }
         };
 
